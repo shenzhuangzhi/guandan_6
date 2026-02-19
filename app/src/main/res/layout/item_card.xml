@@ -11,17 +11,6 @@
         android:src="@drawable/card_background"
         android:scaleType="fitXY"/>
 
-    <TextView
-        android:id="@+id/tv_card_name"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="红桃3"
-        android:textSize="12sp"
-        android:textColor="#000"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_centerInParent="true"/>
-
     <View
         android:id="@+id/view_selected"
         android:layout_width="match_parent"

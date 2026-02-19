@@ -15,7 +15,7 @@ class CardAdapter(
 ) : RecyclerView.Adapter<CardAdapter.CardViewHolder>() {
 
     inner class CardViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvCardName: TextView = itemView.findViewById(R.id.tv_card_name)
+//        val tvCardName: TextView = itemView.findViewById(R.id.tv_card_name)
         val ivCard: ImageView = itemView.findViewById(R.id.iv_card)
         val viewSelected: View = itemView.findViewById(R.id.view_selected)
 
@@ -43,7 +43,7 @@ class CardAdapter(
         }
 
         fun bind(card: Card) {
-            tvCardName.text = card.getDisplayName()
+//            tvCardName.text = card.getDisplayName()
 
             val resId = itemView.context.resources.getIdentifier(
                 card.getResName(),

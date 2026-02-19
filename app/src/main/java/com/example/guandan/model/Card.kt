@@ -38,13 +38,13 @@ data class Card(
     var isSelected: Boolean = false // 是否被选中（出牌用）
 ) {
     // 获取牌的显示名称（如：红桃3、大王）
-    fun getDisplayName(): String {
-        return if (rank.isJoker()) {
-            rank.displayName
-        } else {
-            "${suit.displayName}${rank.displayName}"
-        }
-    }
+//    fun getDisplayName(): String {
+//        return if (rank.isJoker()) {
+//            rank.displayName
+//        } else {
+//            "${suit.displayName}${rank.displayName}"
+//        }
+//    }
 
     // 获取牌的资源名称（用于加载图片，如：heart_3、joker_big）
     fun getResName(): String {
