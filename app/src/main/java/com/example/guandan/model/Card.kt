@@ -49,7 +49,11 @@ data class Card(
     // 获取牌的资源名称（用于加载图片，如：heart_3、joker_big）
     fun getResName(): String {
         return if (rank.isJoker()) {
-            "joker_${rank.displayName.substring(0, 1).lowercase()}"
+            when (this.rank) {
+                CardRank.JOKER_SMALL -> "joker_small"
+                CardRank.JOKER_BIG -> "joker_big"
+                else -> "card_background"
+            }
         } else {
             "${suit.name.lowercase()}_${rank.displayName.lowercase()}"
         }
