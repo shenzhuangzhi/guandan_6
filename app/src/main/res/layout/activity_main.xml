@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:background="#2e7d32"
+    android:padding="40dp"
+    tools:context=".ui.MainActivity">
+
+    <!-- 左侧标题区域 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="壮志掼蛋"
+            android:textSize="80sp"
+            android:textStyle="bold"
+            android:textColor="#ffeb3b"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="经典四人扑克游戏"
+            android:textSize="20sp"
+            android:textColor="#81c784"
+            android:layout_marginTop="10dp"/>
+
+    </LinearLayout>
+
+    <!-- 右侧按钮区域 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="20dp">
+
+        <Button
+            android:id="@+id/btn_single_player"
+            android:layout_width="280dp"
+            android:layout_height="60dp"
+            android:text="单人模式（1人vs3AI）"
+            android:textSize="18sp"
+            android:backgroundTint="#ff5722"/>
+
+        <Button
+            android:id="@+id/btn_two_player_vs_ai"
+            android:layout_width="280dp"
+            android:layout_height="60dp"
+            android:text="双人模式（2人vs2AI）"
+            android:textSize="18sp"
+            android:layout_marginTop="15dp"
+            android:backgroundTint="#ff5722"/>
+
+        <Button
+            android:id="@+id/btn_three_player_vs_ai"
+            android:layout_width="280dp"
+            android:layout_height="60dp"
+            android:text="三人模式（3人vs1AI）"
+            android:textSize="18sp"
+            android:layout_marginTop="15dp"
+            android:backgroundTint="#ff5722"/>
+
+        <Button
+            android:id="@+id/btn_online_4_players"
+            android:layout_width="280dp"
+            android:layout_height="60dp"
+            android:text="四人联网模式"
+            android:textSize="18sp"
+            android:layout_marginTop="15dp"
+            android:backgroundTint="#ff5722"/>
+
+    </LinearLayout>
+
+</LinearLayout>

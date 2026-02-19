@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2e7d32"
+    tools:context=".ui.GameActivity">
+
+    <!-- ==================== 顶部信息栏（高度13dp） ==================== -->
+    <TextView
+        android:id="@+id/tv_current_player"
+        android:layout_width="match_parent"
+        android:layout_height="13dp"
+        android:gravity="center"
+        android:background="#1b5e20"
+        android:text="当前出牌：玩家1"
+        android:textSize="10sp"
+        android:textColor="#ffeb3b"
+        android:textStyle="bold"/>
+
+    <!-- ==================== 左上角：AI2 ==================== -->
+    <LinearLayout
+        android:id="@+id/area_ai2"
+        android:layout_width="80dp"
+        android:layout_height="60dp"
+        android:layout_below="@id/tv_current_player"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="5dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#ffffff">
+
+        <TextView
+            android:id="@+id/tv_ai2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI2"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+    <!-- AI2出牌区域（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/layout_last_ai2"
+        android:layout_width="wrap_content"
+        android:layout_height="67dp"
+        android:layout_below="@id/tv_current_player"
+        android:layout_toEndOf="@id/area_ai2"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="5dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@android:color/transparent"
+        android:visibility="gone"/>
+
+    <!-- AI2过牌文字（默认隐藏，红色大字） -->
+    <TextView
+        android:id="@+id/tv_pass_ai2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_current_player"
+        android:layout_toEndOf="@id/area_ai2"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:text="过牌"
+        android:textSize="20sp"
+        android:textColor="#ff0000"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
+    <!-- ==================== 右上角：AI1 ==================== -->
+    <LinearLayout
+        android:id="@+id/area_ai1"
+        android:layout_width="80dp"
+        android:layout_height="60dp"
+        android:layout_below="@id/tv_current_player"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="5dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#ffffff">
+
+        <TextView
+            android:id="@+id/tv_ai1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI1"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+    <!-- AI1出牌区域（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/layout_last_ai1"
+        android:layout_width="wrap_content"
+        android:layout_height="67dp"
+        android:layout_below="@id/tv_current_player"
+        android:layout_toStartOf="@id/area_ai1"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="5dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@android:color/transparent"
+        android:visibility="gone"/>
+
+    <!-- AI1过牌文字（默认隐藏，红色大字） -->
+    <TextView
+        android:id="@+id/tv_pass_ai1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_current_player"
+        android:layout_toStartOf="@id/area_ai1"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="20dp"
+        android:text="过牌"
+        android:textSize="20sp"
+        android:textColor="#ff0000"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
+    <!-- ==================== 左下角：AI3 ==================== -->
+    <LinearLayout
+        android:id="@+id/area_ai3"
+        android:layout_width="80dp"
+        android:layout_height="60dp"
+        android:layout_above="@id/bottom_area"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="5dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#ffffff">
+
+        <TextView
+            android:id="@+id/tv_ai3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI3"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+    <!-- AI3出牌区域（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/layout_last_ai3"
+        android:layout_width="wrap_content"
+        android:layout_height="67dp"
+        android:layout_above="@id/bottom_area"
+        android:layout_toEndOf="@id/area_ai3"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="5dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@android:color/transparent"
+        android:visibility="gone"/>
+
+    <!-- AI3过牌文字（默认隐藏，红色大字） -->
+    <TextView
+        android:id="@+id/tv_pass_ai3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/bottom_area"
+        android:layout_toEndOf="@id/area_ai3"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="20dp"
+        android:text="过牌"
+        android:textSize="20sp"
+        android:textColor="#ff0000"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
+    <!-- ==================== 右下角：玩家 ==================== -->
+    <LinearLayout
+        android:id="@+id/area_player"
+        android:layout_width="80dp"
+        android:layout_height="60dp"
+        android:layout_above="@id/bottom_area"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="5dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#ffffff">
+
+        <TextView
+            android:id="@+id/tv_player"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="玩家1"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
+    <!-- 玩家出牌区域（默认隐藏） -->
+    <LinearLayout
+        android:id="@+id/layout_last_player"
+        android:layout_width="wrap_content"
+        android:layout_height="67dp"
+        android:layout_above="@id/bottom_area"
+        android:layout_toStartOf="@id/area_player"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="5dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@android:color/transparent"
+        android:visibility="gone"/>
+
+    <!-- 玩家过牌文字（默认隐藏，红色大字） -->
+    <TextView
+        android:id="@+id/tv_pass_player"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/bottom_area"
+        android:layout_toStartOf="@id/area_player"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="20dp"
+        android:text="过牌"
+        android:textSize="20sp"
+        android:textColor="#ff0000"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
+    <!-- 底部手牌区域 -->
+    <LinearLayout
+        android:id="@+id/bottom_area"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="#1b5e20"
+        android:padding="5dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_cards"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingStart="10dp"
+            android:paddingEnd="30dp"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginStart="5dp">
+
+            <Button
+                android:id="@+id/btn_play_cards"
+                android:layout_width="70dp"
+                android:layout_height="40dp"
+                android:text="出牌"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:backgroundTint="#ff5722"/>
+
+            <Button
+                android:id="@+id/btn_pass"
+                android:layout_width="70dp"
+                android:layout_height="40dp"
+                android:text="过牌"
+                android:textSize="14sp"
+                android:layout_marginTop="5dp"
+                android:backgroundTint="#757575"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>
