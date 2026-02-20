@@ -155,6 +155,7 @@ class GuandanGame {
                     else -> null
                 }
             }
+
             6 -> {
                 when {
                     isPlank(cards) -> CardType.PLANK      // 3对相连
@@ -163,12 +164,14 @@ class GuandanGame {
                     else -> null
                 }
             }
+
             in 7..8 -> {
                 when {
                     isAllSameRank(cards) -> CardType.BOMB
                     else -> null
                 }
             }
+
             else -> null
         }
     }
@@ -186,21 +189,21 @@ class GuandanGame {
     }
 
     private fun isStraight(cards: List<Card>): Boolean {
-        if (cards.size < 5) return false
+        if (cards.size != 5) return false
         if (cards.any { it.rank.value >= 15 }) return false
         val sortedValues = cards.map { it.rank.value }.sorted()
         for (i in 1 until sortedValues.size) {
-            if (sortedValues[i] != sortedValues[i-1] + 1) return false
+            if (sortedValues[i] != sortedValues[i - 1] + 1) return false
         }
         return true
     }
 
     private fun isStraightFlush(cards: List<Card>): Boolean {
-        if (cards.size < 5) return false
+        if (cards.size != 5) return false
         if (cards.any { it.rank.value >= 15 }) return false
         val sortedValues = cards.map { it.rank.value }.sorted()
         for (i in 1 until sortedValues.size) {
-            if (sortedValues[i] != sortedValues[i-1] + 1) return false
+            if (sortedValues[i] != sortedValues[i - 1] + 1) return false
         }
         val firstSuit = cards[0].suit
         return cards.all { it.suit == firstSuit }
@@ -215,7 +218,7 @@ class GuandanGame {
         if (rankGroups.any { it.second.size != 2 }) return false
         // 检查是否连续
         for (i in 1 until rankGroups.size) {
-            if (rankGroups[i].first.value != rankGroups[i-1].first.value + 1) return false
+            if (rankGroups[i].first.value != rankGroups[i - 1].first.value + 1) return false
         }
         return true
     }
@@ -233,9 +236,23 @@ class GuandanGame {
 
     private fun canBeatLastCards(cards: List<Card>, currentType: CardType): Boolean {
         val lastType = getCardType(lastPlayedCards) ?: return false
-        print(currentType)
-        if (currentType == CardType.STRAIGHT_FLUSH && lastType != CardType.STRAIGHT_FLUSH) return true
-        if (currentType == CardType.BOMB && lastType != CardType.BOMB && lastType != CardType.STRAIGHT_FLUSH) return true
+        if (currentType != lastType) {
+            if (currentType == CardType.STRAIGHT_FLUSH) {
+                if (lastType == CardType.BOMB) return compareStraightFlushWithBomb(
+                    cards,
+                    lastPlayedCards
+                )
+                return true
+            }
+            if (currentType == CardType.BOMB) {
+                if (lastType == CardType.STRAIGHT_FLUSH) return compareBombWithStraightFlush(
+                    cards,
+                    lastPlayedCards
+                )
+                return true
+            }
+            return false
+        }
         return when (currentType) {
             CardType.SINGLE -> cards[0].rank.value > lastPlayedCards[0].rank.value
             CardType.PAIR -> cards[0].rank.value > lastPlayedCards[0].rank.value
@@ -251,6 +268,15 @@ class GuandanGame {
     private fun compareBomb(current: List<Card>, last: List<Card>): Boolean {
         if (current.size != last.size) return current.size > last.size
         return current[0].rank.value > last[0].rank.value
+    }
+
+    private fun compareBombWithStraightFlush(current: List<Card>, last: List<Card>): Boolean {
+        if (current.size != last.size) return current.size > last.size
+        return false
+    }
+
+    private fun compareStraightFlushWithBomb(current: List<Card>, last: List<Card>): Boolean {
+        return current.size >= last.size
     }
 
     private fun compareSteelPlate(current: List<Card>, last: List<Card>): Boolean {
@@ -276,7 +302,12 @@ class GuandanGame {
                 CardType.SINGLE -> findMinSingleToBeat(cards, lastPlayedCards[0])
                 CardType.PAIR -> findMinPairToBeat(cards, lastPlayedCards[0].rank)
                 CardType.TRIPLE -> findMinTripleToBeat(cards, lastPlayedCards[0].rank)
-                CardType.BOMB -> findMinBombToBeat(cards, lastPlayedCards[0].rank, lastPlayedCards.size)
+                CardType.BOMB -> findMinBombToBeat(
+                    cards,
+                    lastPlayedCards[0].rank,
+                    lastPlayedCards.size
+                )
+
                 CardType.THREE_WITH_TWO -> findMinThreeWithTwoToBeat(cards, lastPlayedCards)
                 CardType.STRAIGHT -> findMinStraightToBeat(cards, lastPlayedCards)
                 CardType.PLANK -> findMinPlankToBeat(cards, lastPlayedCards)
@@ -336,7 +367,11 @@ class GuandanGame {
         return if (validTriples.isNotEmpty()) rankMap[validTriples.first()]!!.take(3) else emptyList()
     }
 
-    private fun findMinBombToBeat(cards: List<Card>, targetRank: CardRank, targetCount: Int): List<Card> {
+    private fun findMinBombToBeat(
+        cards: List<Card>,
+        targetRank: CardRank,
+        targetCount: Int
+    ): List<Card> {
         val rankMap = cards.groupBy { it.rank }
         val sameCount = rankMap.filter {
             it.value.size >= targetCount && it.key.value > targetRank.value
@@ -411,7 +446,8 @@ class GuandanGame {
             val ranks = validRanks.subList(i, i + 3)
             if (ranks[2].value > lastMax &&
                 ranks[1].value == ranks[0].value + 1 &&
-                ranks[2].value == ranks[1].value + 1) {
+                ranks[2].value == ranks[1].value + 1
+            ) {
                 return ranks.flatMap { rankMap[it]!!.take(2) }
             }
         }
@@ -495,20 +531,25 @@ class GuandanGame {
 
     private fun findAnyThreeWithTwo(cards: List<Card>): List<Card> {
         val rankMap = cards.groupBy { it.rank }
-        val tripleRank = rankMap.filter { it.value.size >= 3 }.keys.minByOrNull { it.value } ?: return emptyList()
-        val pairRank = rankMap.filter { it.key != tripleRank && it.value.size >= 2 }.keys.minByOrNull { it.value } ?: return emptyList()
+        val tripleRank = rankMap.filter { it.value.size >= 3 }.keys.minByOrNull { it.value }
+            ?: return emptyList()
+        val pairRank =
+            rankMap.filter { it.key != tripleRank && it.value.size >= 2 }.keys.minByOrNull { it.value }
+                ?: return emptyList()
 
         return rankMap[tripleRank]!!.take(3) + rankMap[pairRank]!!.take(2)
     }
 
     private fun findAnyTriple(cards: List<Card>): List<Card> {
         val rankMap = cards.groupBy { it.rank }
-        return rankMap.filter { it.value.size >= 3 }.values.minByOrNull { it[0].rank.value }?.take(3) ?: emptyList()
+        return rankMap.filter { it.value.size >= 3 }.values.minByOrNull { it[0].rank.value }
+            ?.take(3) ?: emptyList()
     }
 
     private fun findAnyPair(cards: List<Card>): List<Card> {
         val rankMap = cards.groupBy { it.rank }
-        return rankMap.filter { it.value.size >= 2 }.values.minByOrNull { it[0].rank.value }?.take(2) ?: emptyList()
+        return rankMap.filter { it.value.size >= 2 }.values.minByOrNull { it[0].rank.value }
+            ?.take(2) ?: emptyList()
     }
 
     private fun findAnyBomb(cards: List<Card>): List<Card> {
