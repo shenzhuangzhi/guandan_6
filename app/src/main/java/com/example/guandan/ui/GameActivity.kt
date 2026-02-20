@@ -16,6 +16,16 @@ import android.os.Looper
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.view.View
+import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import androidx.core.content.FileProvider
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
 
 class GameActivity : AppCompatActivity() {
     private lateinit var binding: ActivityGameBinding
@@ -26,12 +36,19 @@ class GameActivity : AppCompatActivity() {
     private var humanPlayer: Player? = null
 
     private val handler = Handler(Looper.getMainLooper())
-    private val AI_PLAY_DELAY = 1000L  // 【修改】改为1秒
+    private val AI_PLAY_DELAY = 1000L
 
     // 记录每个玩家上轮出的牌
     private val playerLastCards = mutableMapOf<String, List<Card>>()
     // 记录每个玩家是否出过牌（用于首次判断）
     private val playerHasPlayed = mutableMapOf<String, Boolean>()
+
+    // 保存当前游戏模式，用于重新开牌
+    private var currentGameMode: GameMode = GameMode.SINGLE_PLAYER
+
+    // 服务器配置
+    private val UPDATE_SERVER_URL = "http://120.26.136.185/guandan"
+    private val APK_NAME = "app-release.apk"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,25 +58,12 @@ class GameActivity : AppCompatActivity() {
 
             val gameModeOrdinal = intent.getIntExtra("GAME_MODE_ORDINAL", 0)
             val gameMode = GameMode.values().getOrNull(gameModeOrdinal) ?: GameMode.SINGLE_PLAYER
+            currentGameMode = gameMode
 
-            guandanGame = GuandanGame()
-            gameRoom = guandanGame?.initGame(gameMode)
-            humanPlayer = gameRoom?.players?.firstOrNull { !it.isAI }
+            initGame(gameMode)
 
-            if (gameRoom == null || humanPlayer == null) {
-                Toast.makeText(this, "游戏初始化失败", Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
-
-            // 初始化记录
-            gameRoom?.players?.forEach { player ->
-                playerLastCards[player.id] = emptyList()
-                playerHasPlayed[player.id] = false
-            }
-
-            initCardRecyclerView()
-            updateAllUI()
+            // 设置按钮点击事件
+            binding.btnSettings.setOnClickListener { showSettingsDialog() }
 
             binding.btnPlayCards.setOnClickListener { playSelectedCards() }
             binding.btnPass.setOnClickListener { passTurn() }
@@ -74,6 +78,170 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
+    // 初始化游戏
+    private fun initGame(gameMode: GameMode) {
+        guandanGame = GuandanGame()
+        gameRoom = guandanGame?.initGame(gameMode)
+        humanPlayer = gameRoom?.players?.firstOrNull { !it.isAI }
+
+        if (gameRoom == null || humanPlayer == null) {
+            Toast.makeText(this, "游戏初始化失败", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        // 初始化记录
+        playerLastCards.clear()
+        playerHasPlayed.clear()
+        gameRoom?.players?.forEach { player ->
+            playerLastCards[player.id] = emptyList()
+            playerHasPlayed[player.id] = false
+        }
+
+        initCardRecyclerView()
+        updateAllUI()
+    }
+
+    // 显示设置对话框
+    private fun showSettingsDialog() {
+        val options = arrayOf("重新开牌", "检查APP更新", "手动强制更新")
+        AlertDialog.Builder(this)
+            .setTitle("设置")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showRestartGameConfirmDialog()
+                    1 -> checkForUpdate()
+                    2 -> manualForceUpdate()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // 显示重新开牌确认对话框
+    private fun showRestartGameConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("重新开牌")
+            .setMessage("确定要重新开牌吗？当前游戏进度将丢失。")
+            .setPositiveButton("确定") { _, _ ->
+                restartGame()
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // 重新开牌
+    private fun restartGame() {
+        // 停止AI自动出牌
+        handler.removeCallbacksAndMessages(null)
+
+        // 清空选中的牌
+        selectedCards.clear()
+
+        // 重新初始化游戏
+        initGame(currentGameMode)
+
+        // 检查是否需要启动AI
+        if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
+            startAIAutoPlayChain()
+        }
+
+        Toast.makeText(this, "已重新开牌", Toast.LENGTH_SHORT).show()
+    }
+
+    // 检查APP更新（优化版）
+    private fun checkForUpdate() {
+        val apkUrl = "$UPDATE_SERVER_URL/$APK_NAME"
+        // 使用唯一文件名，避免冲突
+        val uniqueName = "app-update-${System.currentTimeMillis()}.apk"
+        val localFile = File(filesDir, uniqueName)
+
+        AlertDialog.Builder(this)
+            .setTitle("检查更新")
+            .setMessage("从服务器检查并下载最新版本？\n\n$apkUrl")
+            .setPositiveButton("开始下载") { _, _ ->
+                Executors.newSingleThreadExecutor().execute {
+                    try {
+                        URL(apkUrl).openStream().use { `in` ->
+                            localFile.outputStream().use { out ->
+                                `in`.copyTo(out)
+                            }
+                        }
+                        runOnUiThread { launchInstallApk(localFile) }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this, "下载失败：${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        // 下载失败也要清理
+                        localFile.delete()
+                    }
+                }
+            }
+            .setNegativeButton("取消") { _, _ ->
+                // 取消时清理（如果文件已存在）
+                localFile.delete()
+            }
+            .show()
+    }
+
+    // 手动强制更新（外网手动更新）
+    private fun manualForceUpdate() {
+        // 核心修改：把局域网 IP 改成阿里云服务器公网 IP + APK 路径
+        val apkUrl = "$UPDATE_SERVER_URL/$APK_NAME"
+        // 使用唯一文件名，避免冲突
+        val uniqueName = "app-release-${System.currentTimeMillis()}.apk"
+        val localFile = File(filesDir, uniqueName)
+
+        AlertDialog.Builder(this)
+            .setTitle("手动强制更新")
+            .setMessage("从服务器 HTTP 下载并安装？\n\n$apkUrl")
+            .setPositiveButton("开始下载") { _, _ ->
+                Executors.newSingleThreadExecutor().execute {
+                    try {
+                        URL(apkUrl).openStream().use { `in` ->
+                            localFile.outputStream().use { out ->
+                                `in`.copyTo(out)
+                            }
+                        }
+                        runOnUiThread { launchInstallApk(localFile) }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(this, "下载失败：${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        // 下载失败也要清理
+                        localFile.delete()
+                    }
+                }
+            }
+            .setNegativeButton("取消") { _, _ ->
+                // 取消时清理（如果文件已存在）
+                localFile.delete()
+            }
+            .show()
+    }
+
+    // 启动安装APK
+    private fun launchInstallApk(file: File) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+            } else {
+                Uri.fromFile(file)
+            }
+
+            intent.setDataAndType(uri, "application/vnd.android.package-archive")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "安装失败：${e.message}", Toast.LENGTH_SHORT).show()
+            // 安装失败也清理文件
+            file.delete()
+        }
+    }
+
     private fun initCardRecyclerView() {
         val playerCards = humanPlayer?.cards?.toMutableList() ?: mutableListOf()
         cardAdapter = CardAdapter(playerCards) { card ->
@@ -81,11 +249,9 @@ class GameActivity : AppCompatActivity() {
             else selectedCards.remove(card)
         }
 
-        // 水平排列，不反向
         binding.rvCards.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.rvCards.adapter = cardAdapter
 
-        // 允许子视图超出边界显示（为了重叠效果）
         binding.rvCards.clipChildren = false
         binding.rvCards.clipToPadding = false
     }
@@ -101,7 +267,6 @@ class GameActivity : AppCompatActivity() {
 
         val ok = game.playCards(player.id, selectedCards)
         if (ok) {
-            // 记录玩家出牌
             playerLastCards[player.id] = selectedCards.toList()
             playerHasPlayed[player.id] = true
 
@@ -124,7 +289,6 @@ class GameActivity : AppCompatActivity() {
         val player = humanPlayer ?: return
         humanPlayer?.id?.let { guandanGame?.passTurn(it) }
 
-        // 记录过牌
         playerLastCards[player.id] = emptyList()
         playerHasPlayed[player.id] = true
 
@@ -146,16 +310,8 @@ class GameActivity : AppCompatActivity() {
 
         val actuallyPlayed = playedCard != null && currentLastCards.isNotEmpty() && aiPlayedName == curr.name
 
-        // 记录AI出牌
         playerLastCards[curr.id] = if (actuallyPlayed) currentLastCards.toList() else emptyList()
         playerHasPlayed[curr.id] = true
-
-        // 【删除】取消Toast文字提示
-        // if (actuallyPlayed) {
-        //     Toast.makeText(this, "${curr.name} 出了：${getCardDesc(currentLastCards)}", Toast.LENGTH_SHORT).show()
-        // } else {
-        //     Toast.makeText(this, "${curr.name} 选择过牌", Toast.LENGTH_SHORT).show()
-        // }
 
         updateAllUI()
 
@@ -195,92 +351,74 @@ class GameActivity : AppCompatActivity() {
         val room = gameRoom ?: return
         val curr = room.players.find { it.isCurrentTurn }
 
-        // 顶部当前回合
         binding.tvCurrentPlayer.text = "当前出牌：${curr?.name ?: "无"}"
 
-        // 更新四个角玩家信息
         room.players.forEach { player ->
             val nameText = "${player.name}\n剩${player.cards.size}张"
             when {
-                player.isAI && room.players.indexOf(player) == 1 -> { // AI1 (右上)
+                player.isAI && room.players.indexOf(player) == 1 -> {
                     binding.tvAi1.text = nameText
                 }
-                player.isAI && room.players.indexOf(player) == 2 -> { // AI2 (左上)
+                player.isAI && room.players.indexOf(player) == 2 -> {
                     binding.tvAi2.text = nameText
                 }
-                player.isAI && room.players.indexOf(player) == 3 -> { // AI3 (左下)
+                player.isAI && room.players.indexOf(player) == 3 -> {
                     binding.tvAi3.text = nameText
                 }
-                !player.isAI -> { // 玩家 (右下)
+                !player.isAI -> {
                     binding.tvPlayer.text = nameText
                 }
             }
         }
     }
 
-    // 显示上轮出牌（首次前隐藏，过牌显示文字，出牌显示图片）
     private fun updateLastPlayedDisplay() {
         val room = gameRoom ?: return
 
-        // AI1（右上）
         val ai1Id = room.players.getOrNull(1)?.id
         displayPlayerLastPlay(ai1Id, binding.layoutLastAi1, binding.tvPassAi1)
 
-        // AI2（左上）
         val ai2Id = room.players.getOrNull(2)?.id
         displayPlayerLastPlay(ai2Id, binding.layoutLastAi2, binding.tvPassAi2)
 
-        // AI3（左下）
         val ai3Id = room.players.getOrNull(3)?.id
         displayPlayerLastPlay(ai3Id, binding.layoutLastAi3, binding.tvPassAi3)
 
-        // 玩家（右下）
         val playerId = humanPlayer?.id
         displayPlayerLastPlay(playerId, binding.layoutLastPlayer, binding.tvPassPlayer)
     }
 
-    // 显示单个玩家的上轮出牌
     private fun displayPlayerLastPlay(playerId: String?, layout: LinearLayout, passText: android.widget.TextView) {
         if (playerId == null) return
 
         val hasPlayed = playerHasPlayed[playerId] ?: false
         val cards = playerLastCards[playerId] ?: emptyList()
 
-        // 先清空并隐藏所有
         layout.removeAllViews()
         layout.visibility = View.GONE
         passText.visibility = View.GONE
 
         if (!hasPlayed) {
-            // 首次出牌前，全部隐藏（已处理）
             return
         }
 
         if (cards.isEmpty()) {
-            // 过牌，只显示"过牌"文字
             passText.visibility = View.VISIBLE
         } else {
-            // 有出牌，显示图片
             layout.visibility = View.VISIBLE
-            // 强制透明背景
             layout.setBackgroundColor(0x00000000)
             displayCardsInLayout(layout, cards)
         }
     }
 
-    // 在指定布局中显示牌的图片
     private fun displayCardsInLayout(layout: LinearLayout, cards: List<Card>) {
         layout.removeAllViews()
-
-        // 强制布局背景透明
         layout.setBackgroundColor(0x00000000)
 
-        // dp转px（尺寸为手牌的2/3：47dp x 67dp）
         val density = resources.displayMetrics.density
         val cardWidth = (47 * density).toInt()
         val cardHeight = (67 * density).toInt()
 
-        // 添加每张牌的图片
         cards.forEach { card ->
             val imageView = ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(cardWidth, cardHeight).apply {
@@ -288,10 +426,8 @@ class GameActivity : AppCompatActivity() {
                     marginEnd = (2 * density).toInt()
                 }
                 scaleType = ImageView.ScaleType.FIT_XY
-                // 设置透明背景
                 setBackgroundColor(0x00000000)
 
-                // 加载牌图片
                 val resId = resources.getIdentifier(
                     card.getResName(),
                     "drawable",

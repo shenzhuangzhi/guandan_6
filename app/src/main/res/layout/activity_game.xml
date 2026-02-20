@@ -18,6 +18,21 @@
         android:textColor="#ffeb3b"
         android:textStyle="bold"/>
 
+    <!-- ==================== 设置按钮（最顶部右上角，小图标） ==================== -->
+    <ImageButton
+        android:id="@+id/btn_settings"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="5dp"
+        android:layout_marginTop="2dp"
+        android:src="@android:drawable/ic_menu_more"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:scaleType="fitCenter"
+        android:tint="#ffffff"
+        android:contentDescription="设置"/>
+
     <!-- ==================== 左上角：AI2 ==================== -->
     <LinearLayout
         android:id="@+id/area_ai2"
