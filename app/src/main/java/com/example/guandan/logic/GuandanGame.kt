@@ -124,6 +124,8 @@ class GuandanGame {
         val cardType = getCardType(selectedCards)
         if (cardType == null) return false
 
+        print(cardType)
+
         if (lastPlayedCards.isNotEmpty()) {
             if (!canBeatLastCards(selectedCards, cardType)) return false
         }
@@ -147,7 +149,9 @@ class GuandanGame {
             5 -> {
                 when {
                     isThreeWithTwo(cards) -> CardType.THREE_WITH_TWO
+                    isStraightFlush(cards) -> CardType.STRAIGHT_FLUSH
                     isStraight(cards) -> CardType.STRAIGHT
+                    isAllSameRank(cards) -> CardType.BOMB
                     else -> null
                 }
             }
@@ -155,14 +159,12 @@ class GuandanGame {
                 when {
                     isPlank(cards) -> CardType.PLANK      // 3对相连
                     isSteelPlate(cards) -> CardType.STEEL_PLATE  // 2个顺序三张
-                    isStraight(cards) -> CardType.STRAIGHT
                     isAllSameRank(cards) -> CardType.BOMB
                     else -> null
                 }
             }
-            in 7..10 -> {
+            in 7..8 -> {
                 when {
-                    isStraight(cards) -> CardType.STRAIGHT
                     isAllSameRank(cards) -> CardType.BOMB
                     else -> null
                 }
@@ -193,6 +195,17 @@ class GuandanGame {
         return true
     }
 
+    private fun isStraightFlush(cards: List<Card>): Boolean {
+        if (cards.size < 5) return false
+        if (cards.any { it.rank.value >= 15 }) return false
+        val sortedValues = cards.map { it.rank.value }.sorted()
+        for (i in 1 until sortedValues.size) {
+            if (sortedValues[i] != sortedValues[i-1] + 1) return false
+        }
+        val firstSuit = cards[0].suit
+        return cards.all { it.suit == firstSuit }
+    }
+
     // 【修改】木板：只能是3对相连（6张）
     private fun isPlank(cards: List<Card>): Boolean {
         if (cards.size != 6) return false
@@ -220,11 +233,9 @@ class GuandanGame {
 
     private fun canBeatLastCards(cards: List<Card>, currentType: CardType): Boolean {
         val lastType = getCardType(lastPlayedCards) ?: return false
-        if (currentType == CardType.BOMB && lastType != CardType.BOMB) return true
-        if (currentType != lastType) {
-            if (currentType == CardType.STRAIGHT_FLUSH && lastType == CardType.STRAIGHT) return true
-            return false
-        }
+        print(currentType)
+        if (currentType == CardType.STRAIGHT_FLUSH && lastType != CardType.STRAIGHT_FLUSH) return true
+        if (currentType == CardType.BOMB && lastType != CardType.BOMB && lastType != CardType.STRAIGHT_FLUSH) return true
         return when (currentType) {
             CardType.SINGLE -> cards[0].rank.value > lastPlayedCards[0].rank.value
             CardType.PAIR -> cards[0].rank.value > lastPlayedCards[0].rank.value
