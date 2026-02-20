@@ -124,8 +124,6 @@ class GuandanGame {
         val cardType = getCardType(selectedCards)
         if (cardType == null) return false
 
-        print(cardType)
-
         if (lastPlayedCards.isNotEmpty()) {
             if (!canBeatLastCards(selectedCards, cardType)) return false
         }
@@ -209,7 +207,7 @@ class GuandanGame {
         return cards.all { it.suit == firstSuit }
     }
 
-    // 【修改】木板：只能是3对相连（6张）
+    // 木板：只能是3对相连（6张）
     private fun isPlank(cards: List<Card>): Boolean {
         if (cards.size != 6) return false
         // 按点数分组，必须是3组，每组2张
@@ -223,7 +221,7 @@ class GuandanGame {
         return true
     }
 
-    // 【修改】钢板：只能是2个顺序的三张（6张）
+    // 钢板：只能是2个顺序的三张（6张）
     private fun isSteelPlate(cards: List<Card>): Boolean {
         if (cards.size != 6) return false
         // 按点数分组，必须是2组，每组3张
@@ -285,10 +283,13 @@ class GuandanGame {
         return currentMax > lastMax
     }
 
-    // 【核心】AI自动出牌 - 支持所有牌型
+    // 【核心修复】AI自动出牌 - 优化返回值和状态处理
     fun autoPlayOneCard(aiPlayer: Player): Card? {
         if (!this::gameRoom.isInitialized || !aiPlayer.isCurrentTurn || aiPlayer.cards.isEmpty()) {
-            passTurn(aiPlayer.id)
+            // 状态异常时直接pass，但确保回合切换
+            if (aiPlayer.isCurrentTurn) {
+                passTurn(aiPlayer.id)
+            }
             return null
         }
 
@@ -336,9 +337,16 @@ class GuandanGame {
         }
 
         return if (playedCards.isNotEmpty()) {
-            playCards(aiPlayer.id, playedCards)
-            playedCards[0]
+            val success = playCards(aiPlayer.id, playedCards)
+            if (success) {
+                playedCards[0]
+            } else {
+                // 出牌失败（异常情况），强制pass
+                passTurn(aiPlayer.id)
+                null
+            }
         } else {
+            // 无牌可出，pass
             passTurn(aiPlayer.id)
             null
         }
@@ -429,7 +437,7 @@ class GuandanGame {
         return emptyList()
     }
 
-    // 【修改】找木板（3对相连）
+    // 找木板（3对相连）
     private fun findMinPlankToBeat(cards: List<Card>, lastCards: List<Card>): List<Card> {
         val lastMax = lastCards.maxOf { it.rank.value }
         val rankMap = cards.filter { it.rank.value < 15 }.groupBy { it.rank }
@@ -454,7 +462,7 @@ class GuandanGame {
         return emptyList()
     }
 
-    // 【修改】找钢板（2个顺序三张）
+    // 找钢板（2个顺序三张）
     private fun findMinSteelPlateToBeat(cards: List<Card>, lastCards: List<Card>): List<Card> {
         val lastMax = lastCards.groupBy { it.rank }.keys.maxOf { it.value }
         val rankMap = cards.filter { it.rank.value < 15 }.groupBy { it.rank }
@@ -478,7 +486,7 @@ class GuandanGame {
 
     // ========== AI找牌方法 - 主动出牌 ==========
 
-    // 【修改】找钢板（2个顺序三张，6张）
+    // 找钢板（2个顺序三张，6张）
     private fun findAnySteelPlate(cards: List<Card>): List<Card> {
         val rankMap = cards.filter { it.rank.value < 15 }.groupBy { it.rank }
         val tripleRanks = rankMap.filter { it.value.size >= 3 }.keys.sortedBy { it.value }
@@ -495,7 +503,7 @@ class GuandanGame {
         return emptyList()
     }
 
-    // 【修改】找木板（3对相连，6张）
+    // 找木板（3对相连，6张）
     private fun findAnyPlank(cards: List<Card>): List<Card> {
         val rankMap = cards.filter { it.rank.value < 15 }.groupBy { it.rank }
         val pairRanks = rankMap.filter { it.value.size >= 2 }.keys.sortedBy { it.value }
@@ -563,6 +571,14 @@ class GuandanGame {
 
     fun passTurn(playerId: String) {
         if (!this::gameRoom.isInitialized) return
+
+        // 验证是否是当前玩家
+        val currentPlayer = gameRoom.players.find { it.isCurrentTurn }
+        if (currentPlayer?.id != playerId) {
+            android.util.Log.w("GuandanGame", "passTurn: 不是当前玩家，忽略")
+            return
+        }
+
         passCount++
         if (passCount >= gameRoom.players.size - 1) {
             lastPlayedCards = emptyList()
@@ -573,14 +589,23 @@ class GuandanGame {
         switchToNextPlayer()
     }
 
+    // 【修复】优化玩家切换逻辑，增加健壮性
     fun switchToNextPlayer() {
         if (!this::gameRoom.isInitialized || gameRoom.players.isEmpty()) return
+
+        // 清除当前玩家标记
         gameRoom.players.forEach { it.isCurrentTurn = false }
+
+        // 找到当前玩家索引
         val currIndex = gameRoom.players.indexOfFirst { it.id == gameRoom.currentPlayerId }
         val nextIndex = if (currIndex == -1) 0 else (currIndex + 1) % gameRoom.players.size
+
+        // 设置下一个玩家
         val nextPlayer = gameRoom.players[nextIndex]
         gameRoom.currentPlayerId = nextPlayer.id
         nextPlayer.isCurrentTurn = true
+
+        android.util.Log.d("GuandanGame", "切换到玩家: ${nextPlayer.name}, isAI=${nextPlayer.isAI}")
     }
 
     fun isGameOver(): Boolean {

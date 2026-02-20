@@ -50,6 +50,9 @@ class GameActivity : AppCompatActivity() {
     private val UPDATE_SERVER_URL = "http://120.26.136.185/guandan"
     private val APK_NAME = "app-release.apk"
 
+    // 标记是否正在运行AI链，防止重复启动
+    private var isAIChainRunning = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -68,9 +71,8 @@ class GameActivity : AppCompatActivity() {
             binding.btnPlayCards.setOnClickListener { playSelectedCards() }
             binding.btnPass.setOnClickListener { passTurn() }
 
-            if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
-                startAIAutoPlayChain()
-            }
+            // 检查是否需要启动AI
+            checkAndStartAIChain()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "启动失败：${e.message}", Toast.LENGTH_LONG).show()
@@ -134,6 +136,7 @@ class GameActivity : AppCompatActivity() {
     private fun restartGame() {
         // 停止AI自动出牌
         handler.removeCallbacksAndMessages(null)
+        isAIChainRunning = false
 
         // 清空选中的牌
         selectedCards.clear()
@@ -142,11 +145,20 @@ class GameActivity : AppCompatActivity() {
         initGame(currentGameMode)
 
         // 检查是否需要启动AI
-        if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
-            startAIAutoPlayChain()
-        }
+        checkAndStartAIChain()
 
         Toast.makeText(this, "已重新开牌", Toast.LENGTH_SHORT).show()
+    }
+
+    // 检查并启动AI链（统一入口）
+    private fun checkAndStartAIChain() {
+        val room = gameRoom ?: return
+        val currentPlayer = room.players.find { it.isCurrentTurn } ?: return
+
+        // 如果当前是AI回合且没有在运行AI链，则启动
+        if (currentPlayer.isAI && !isAIChainRunning) {
+            startAIAutoPlayChain()
+        }
     }
 
     // 检查APP更新（优化版）
@@ -279,7 +291,9 @@ class GameActivity : AppCompatActivity() {
                 gameOver()
                 return
             }
-            startAIAutoPlayChain()
+
+            // 人类出牌后，检查是否需要启动AI链
+            checkAndStartAIChain()
         } else {
             Toast.makeText(this, "出牌不合法", Toast.LENGTH_SHORT).show()
         }
@@ -287,41 +301,88 @@ class GameActivity : AppCompatActivity() {
 
     private fun passTurn() {
         val player = humanPlayer ?: return
-        humanPlayer?.id?.let { guandanGame?.passTurn(it) }
+        val playerId = player.id
 
-        playerLastCards[player.id] = emptyList()
-        playerHasPlayed[player.id] = true
+        guandanGame?.passTurn(playerId)
+
+        playerLastCards[playerId] = emptyList()
+        playerHasPlayed[playerId] = true
 
         updateAllUI()
-        startAIAutoPlayChain()
+
+        // 人类过牌后，检查是否需要启动AI链
+        checkAndStartAIChain()
     }
 
+    // 【核心修复】AI自动出牌链 - 使用循环而非递归，更可靠
     private fun startAIAutoPlayChain() {
-        val room = gameRoom ?: return
-        val game = guandanGame ?: return
+        // 防止重复启动
+        if (isAIChainRunning) return
 
-        val curr = room.players.find { it.isCurrentTurn } ?: return
-        if (!curr.isAI) return
-        if (game.isGameOver()) return
+        isAIChainRunning = true
+        handler.removeCallbacksAndMessages(null)
 
-        val playedCard = game.autoPlayOneCard(curr)
-        val currentLastCards = game.lastPlayedCardsPublic
-        val aiPlayedName = game.lastPlayerNamePublic
+        processNextAIPlayer()
+    }
 
-        val actuallyPlayed = playedCard != null && currentLastCards.isNotEmpty() && aiPlayedName == curr.name
+    // 处理下一个AI玩家
+    private fun processNextAIPlayer() {
+        val room = gameRoom ?: run {
+            isAIChainRunning = false
+            return
+        }
+        val game = guandanGame ?: run {
+            isAIChainRunning = false
+            return
+        }
 
-        playerLastCards[curr.id] = if (actuallyPlayed) currentLastCards.toList() else emptyList()
-        playerHasPlayed[curr.id] = true
-
-        updateAllUI()
-
+        // 检查游戏是否结束
         if (game.isGameOver()) {
+            isAIChainRunning = false
             gameOver()
             return
         }
 
+        val currentPlayer = room.players.find { it.isCurrentTurn }
+
+        // 找不到当前玩家
+        if (currentPlayer == null) {
+            android.util.Log.e("AI_CHAIN", "找不到当前玩家，停止AI链")
+            isAIChainRunning = false
+            return
+        }
+
+        // 如果不是AI回合，停止链（等待人类操作）
+        if (!currentPlayer.isAI) {
+            android.util.Log.d("AI_CHAIN", "轮到人类玩家 ${currentPlayer.name}，暂停AI链")
+            isAIChainRunning = false
+            return
+        }
+
+        android.util.Log.d("AI_CHAIN", "AI玩家 ${currentPlayer.name} 出牌")
+
+        // AI执行出牌
+        val playedCard = game.autoPlayOneCard(currentPlayer)
+        val currentLastCards = game.lastPlayedCardsPublic
+        val aiPlayedName = game.lastPlayerNamePublic
+
+        val actuallyPlayed = playedCard != null && currentLastCards.isNotEmpty() && aiPlayedName == currentPlayer.name
+
+        playerLastCards[currentPlayer.id] = if (actuallyPlayed) currentLastCards.toList() else emptyList()
+        playerHasPlayed[currentPlayer.id] = true
+
+        updateAllUI()
+
+        // 检查游戏是否结束
+        if (game.isGameOver()) {
+            isAIChainRunning = false
+            gameOver()
+            return
+        }
+
+        // 延迟后继续下一个AI
         handler.postDelayed({
-            startAIAutoPlayChain()
+            processNextAIPlayer()
         }, AI_PLAY_DELAY)
     }
 
@@ -345,6 +406,23 @@ class GameActivity : AppCompatActivity() {
     private fun updateAllUI() {
         updatePlayerInfo()
         updateLastPlayedDisplay()
+        updateTurnIndicator()
+    }
+
+    // 新增：更新回合指示器，明确显示当前是谁的回合
+    private fun updateTurnIndicator() {
+        val room = gameRoom ?: return
+        val currentPlayer = room.players.find { it.isCurrentTurn }
+
+        // 高亮当前玩家
+        val isHumanTurn = currentPlayer?.id == humanPlayer?.id
+
+        // 可以根据需要在这里添加更明显的UI提示
+        // 例如改变边框颜色、显示动画等
+        binding.tvCurrentPlayer.setTextColor(
+            if (isHumanTurn) android.graphics.Color.GREEN
+            else android.graphics.Color.WHITE
+        )
     }
 
     private fun updatePlayerInfo() {
@@ -454,5 +532,19 @@ class GameActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
+        isAIChainRunning = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 从后台返回时，检查是否需要启动AI
+        checkAndStartAIChain()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 进入后台时停止AI链
+        handler.removeCallbacksAndMessages(null)
+        isAIChainRunning = false
     }
 }
