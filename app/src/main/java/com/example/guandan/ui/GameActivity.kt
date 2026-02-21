@@ -279,6 +279,7 @@ class GameActivity : AppCompatActivity() {
             else selectedCards.remove(card)
         }
 
+        // 【修改】使用wrap_content让牌完整显示
         binding.rvCards.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.rvCards.adapter = cardAdapter
 
@@ -484,21 +485,27 @@ class GameActivity : AppCompatActivity() {
 
         room.players.forEach { player ->
             val teamColor = if (player.team == 0) "🔵" else "🔴"
+            // 【修改】改为两行显示：第一行名字+队友标记，第二行剩牌数
             val teammateMark = if (player.team == 0) "(友)" else "(敌)"
-            val nameText = "${teamColor}${player.name}${teammateMark}\n剩${player.cards.size}张"
+            val nameText = "${teamColor}${player.name}${teammateMark}"
+            val cardText = "剩${player.cards.size}张"
 
             when {
                 player.isAI && room.players.indexOf(player) == 1 -> {
-                    binding.tvAi1.text = nameText
+                    // AI1 - 右上角
+                    binding.tvAi1.text = "$nameText\n$cardText"
                 }
                 player.isAI && room.players.indexOf(player) == 2 -> {
-                    binding.tvAi2.text = nameText
+                    // AI2 - 左上角
+                    binding.tvAi2.text = "$nameText\n$cardText"
                 }
                 player.isAI && room.players.indexOf(player) == 3 -> {
-                    binding.tvAi3.text = nameText
+                    // AI3 - 左下角
+                    binding.tvAi3.text = "$nameText\n$cardText"
                 }
                 !player.isAI -> {
-                    binding.tvPlayer.text = nameText
+                    // 玩家 - 右下角
+                    binding.tvPlayer.text = "$nameText\n$cardText"
                 }
             }
         }

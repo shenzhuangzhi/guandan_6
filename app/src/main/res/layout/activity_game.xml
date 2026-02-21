@@ -36,8 +36,8 @@
     <!-- ==================== 左上角：AI2 ==================== -->
     <LinearLayout
         android:id="@+id/area_ai2"
-        android:layout_width="80dp"
-        android:layout_height="60dp"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
         android:layout_below="@id/tv_current_player"
         android:layout_alignParentStart="true"
         android:layout_marginStart="10dp"
@@ -48,12 +48,14 @@
 
         <TextView
             android:id="@+id/tv_ai2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:text="AI2"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textColor="#000000"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.0"/>
 
     </LinearLayout>
 
@@ -89,8 +91,8 @@
     <!-- ==================== 右上角：AI1 ==================== -->
     <LinearLayout
         android:id="@+id/area_ai1"
-        android:layout_width="80dp"
-        android:layout_height="60dp"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
         android:layout_below="@id/tv_current_player"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="10dp"
@@ -101,12 +103,14 @@
 
         <TextView
             android:id="@+id/tv_ai1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:text="AI1"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textColor="#000000"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.0"/>
 
     </LinearLayout>
 
@@ -142,8 +146,8 @@
     <!-- ==================== 左下角：AI3 ==================== -->
     <LinearLayout
         android:id="@+id/area_ai3"
-        android:layout_width="80dp"
-        android:layout_height="60dp"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
         android:layout_above="@id/bottom_area"
         android:layout_alignParentStart="true"
         android:layout_marginStart="10dp"
@@ -154,12 +158,14 @@
 
         <TextView
             android:id="@+id/tv_ai3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:text="AI3"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textColor="#000000"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.0"/>
 
     </LinearLayout>
 
@@ -195,8 +201,8 @@
     <!-- ==================== 右下角：玩家 ==================== -->
     <LinearLayout
         android:id="@+id/area_player"
-        android:layout_width="80dp"
-        android:layout_height="60dp"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
         android:layout_above="@id/bottom_area"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="10dp"
@@ -207,12 +213,14 @@
 
         <TextView
             android:id="@+id/tv_player"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:text="玩家1"
-            android:textSize="16sp"
+            android:textSize="14sp"
             android:textColor="#000000"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.0"/>
 
     </LinearLayout>
 
@@ -245,52 +253,59 @@
         android:textStyle="bold"
         android:visibility="gone"/>
 
-    <!-- 底部手牌区域 -->
+    <!-- ==================== 【修改】中间出牌/过牌按钮区域 ==================== -->
+    <!-- 【修改】再往上移50dp（总共120dp），原来是70dp，现在改为120dp -->
+    <LinearLayout
+        android:id="@+id/layout_center_buttons"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_above="@id/bottom_area"
+        android:layout_marginBottom="120dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@android:color/transparent">
+
+        <Button
+            android:id="@+id/btn_play_cards"
+            android:layout_width="80dp"
+            android:layout_height="50dp"
+            android:text="出牌"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:backgroundTint="#ff5722"/>
+
+        <Button
+            android:id="@+id/btn_pass"
+            android:layout_width="80dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="20dp"
+            android:text="过牌"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:backgroundTint="#757575"/>
+
+    </LinearLayout>
+
+    <!-- ==================== 底部手牌区域 ==================== -->
     <LinearLayout
         android:id="@+id/bottom_area"
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:orientation="horizontal"
-        android:background="#1b5e20"
-        android:padding="5dp">
+        android:gravity="center"
+        android:background="@android:color/transparent"
+        android:padding="0dp">
 
+        <!-- 【修改】增加paddingEnd确保最后一张牌完整显示 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rv_cards"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:paddingStart="10dp"
-            android:paddingEnd="30dp"/>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:layout_marginStart="5dp">
-
-            <Button
-                android:id="@+id/btn_play_cards"
-                android:layout_width="70dp"
-                android:layout_height="40dp"
-                android:text="出牌"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:backgroundTint="#ff5722"/>
-
-            <Button
-                android:id="@+id/btn_pass"
-                android:layout_width="70dp"
-                android:layout_height="40dp"
-                android:text="过牌"
-                android:textSize="14sp"
-                android:layout_marginTop="5dp"
-                android:backgroundTint="#757575"/>
-
-        </LinearLayout>
+            android:paddingEnd="25dp"/>
 
     </LinearLayout>
 
