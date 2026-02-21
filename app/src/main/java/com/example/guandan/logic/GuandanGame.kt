@@ -279,8 +279,6 @@ class GuandanGame {
         val cardType = getCardType(selectedCards)
         if (cardType == null) return false
 
-        print(cardType)
-
         if (lastPlayedCards.isNotEmpty()) {
             if (!canBeatLastCards(selectedCards, cardType)) return false
         }
@@ -481,7 +479,10 @@ class GuandanGame {
      */
     fun autoPlayOneCard(aiPlayer: Player): Card? {
         if (!this::gameRoom.isInitialized || !aiPlayer.isCurrentTurn || aiPlayer.cards.isEmpty()) {
-            passTurn(aiPlayer.id)
+            // 状态异常时直接pass，但确保回合切换
+            if (aiPlayer.isCurrentTurn) {
+                passTurn(aiPlayer.id)
+            }
             return null
         }
 
@@ -610,9 +611,16 @@ class GuandanGame {
         }
 
         return if (playedCards.isNotEmpty()) {
-            playCards(aiPlayer.id, playedCards)
-            playedCards[0]
+            val success = playCards(aiPlayer.id, playedCards)
+            if (success) {
+                playedCards[0]
+            } else {
+                // 出牌失败（异常情况），强制pass
+                passTurn(aiPlayer.id)
+                null
+            }
         } else {
+            // 无牌可出，pass
             passTurn(aiPlayer.id)
             null
         }
@@ -944,6 +952,14 @@ class GuandanGame {
 
     fun passTurn(playerId: String) {
         if (!this::gameRoom.isInitialized) return
+
+        // 验证是否是当前玩家
+        val currentPlayer = gameRoom.players.find { it.isCurrentTurn }
+        if (currentPlayer?.id != playerId) {
+            android.util.Log.w("GuandanGame", "passTurn: 不是当前玩家，忽略")
+            return
+        }
+
         passCount++
         if (passCount >= gameRoom.players.size - 1) {
             lastPlayedCards = emptyList()
@@ -959,12 +975,20 @@ class GuandanGame {
      */
     fun switchToNextPlayer() {
         if (!this::gameRoom.isInitialized || gameRoom.players.isEmpty()) return
+
+        // 清除当前玩家标记
         gameRoom.players.forEach { it.isCurrentTurn = false }
+
+        // 找到当前玩家索引
         val currIndex = gameRoom.players.indexOfFirst { it.id == gameRoom.currentPlayerId }
         val nextIndex = if (currIndex == -1) 0 else (currIndex + 1) % gameRoom.players.size
+
+        // 设置下一个玩家
         val nextPlayer = gameRoom.players[nextIndex]
         gameRoom.currentPlayerId = nextPlayer.id
         nextPlayer.isCurrentTurn = true
+
+        android.util.Log.d("GuandanGame", "切换到玩家: ${nextPlayer.name}, isAI=${nextPlayer.isAI}")
     }
 
     fun isGameOver(): Boolean {
