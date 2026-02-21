@@ -59,8 +59,11 @@ data class Card(
         }
     }
 
-    // 判断是否是逢人配（红桃3）
-    fun isFengRenPei(): Boolean {
-        return suit == CardSuit.HEART && rank == CardRank.THREE
+    // 【修改】判断是否是逢人配（红桃级牌）
+    fun isFengRenPei(levelRank: CardRank? = null): Boolean {
+        // 红桃级牌是逢人配（万能牌）
+        return suit == CardSuit.HEART && rank == levelRank
     }
+
+
 }

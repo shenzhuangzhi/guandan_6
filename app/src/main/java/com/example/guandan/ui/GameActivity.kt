@@ -165,13 +165,17 @@ class GameActivity : AppCompatActivity() {
     }
 
     // 检查并启动AI链（统一入口）
+// 检查并启动AI链（统一入口）
     private fun checkAndStartAIChain() {
         val room = gameRoom ?: return
         val currentPlayer = room.players.find { it.isCurrentTurn } ?: return
 
         // 如果当前是AI回合且没有在运行AI链，则启动
         if (currentPlayer.isAI && !isAIChainRunning) {
+            android.util.Log.d("AI_CHAIN", "检测到AI回合且链未运行，启动AI链")
             startAIAutoPlayChain()
+        } else {
+            android.util.Log.d("AI_CHAIN", "无需启动AI链: isAI=${currentPlayer.isAI}, isRunning=$isAIChainRunning")
         }
     }
 
@@ -332,27 +336,37 @@ class GameActivity : AppCompatActivity() {
     // 【核心修复】AI自动出牌链 - 使用循环而非递归，更可靠
     private fun startAIAutoPlayChain() {
         // 防止重复启动
-        if (isAIChainRunning) return
+        if (isAIChainRunning) {
+            android.util.Log.d("AI_CHAIN", "AI链已在运行，忽略重复启动")
+            return
+        }
 
-        isAIChainRunning = true
+        // 【关键】清除之前的所有回调，确保干净启动
         handler.removeCallbacksAndMessages(null)
 
+        isAIChainRunning = true
+        android.util.Log.d("AI_CHAIN", "========== 启动AI链 ==========")
+
+        // 立即开始，不延迟
         processNextAIPlayer()
     }
 
     // 处理下一个AI玩家
     private fun processNextAIPlayer() {
         val room = gameRoom ?: run {
+            android.util.Log.e("AI_CHAIN", "gameRoom为空，停止AI链")
             isAIChainRunning = false
             return
         }
         val game = guandanGame ?: run {
+            android.util.Log.e("AI_CHAIN", "guandanGame为空，停止AI链")
             isAIChainRunning = false
             return
         }
 
         // 检查游戏是否结束
         if (game.isGameOver()) {
+            android.util.Log.d("AI_CHAIN", "游戏结束，停止AI链")
             isAIChainRunning = false
             gameOver()
             return
@@ -374,15 +388,27 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-        android.util.Log.d("AI_CHAIN", "AI玩家 ${currentPlayer.name} 出牌")
+        android.util.Log.d("AI_CHAIN", "AI玩家 ${currentPlayer.name} 开始决策，剩余${currentPlayer.cards.size}张牌")
+
+        // 【关键修改】AI执行出牌前，先检查是否真的轮到它
+        if (!currentPlayer.isCurrentTurn) {
+            android.util.Log.w("AI_CHAIN", "状态不同步，${currentPlayer.name} 不是当前回合，停止AI链")
+            isAIChainRunning = false
+            return
+        }
 
         // AI执行出牌
         val playedCard = game.autoPlayOneCard(currentPlayer)
+
+        // 【关键修改】检查autoPlayOneCard是否正确执行了过牌或出牌
+        // 如果playedCard为null且lastPlayedCards没有变化，说明是过牌
         val currentLastCards = game.lastPlayedCardsPublic
         val aiPlayedName = game.lastPlayerNamePublic
-
         val actuallyPlayed = playedCard != null && currentLastCards.isNotEmpty() && aiPlayedName == currentPlayer.name
 
+        android.util.Log.d("AI_CHAIN", "${currentPlayer.name} 出牌结果: playedCard=${playedCard != null}, actuallyPlayed=$actuallyPlayed, lastName=$aiPlayedName")
+
+        // 更新UI
         playerLastCards[currentPlayer.id] = if (actuallyPlayed) currentLastCards.toList() else emptyList()
         playerHasPlayed[currentPlayer.id] = true
 
@@ -390,14 +416,21 @@ class GameActivity : AppCompatActivity() {
 
         // 检查游戏是否结束
         if (game.isGameOver()) {
+            android.util.Log.d("AI_CHAIN", "AI出牌后游戏结束")
             isAIChainRunning = false
             gameOver()
             return
         }
 
-        // 延迟后继续下一个AI
+        // 【关键修改】无论AI是出牌还是过牌，都继续下一个
+        // 延迟后继续下一个AI（给UI刷新时间）
         handler.postDelayed({
-            processNextAIPlayer()
+            // 递归调用前检查是否还在运行
+            if (isAIChainRunning) {
+                processNextAIPlayer()
+            } else {
+                android.util.Log.d("AI_CHAIN", "AI链已被停止，不再继续")
+            }
         }, AI_PLAY_DELAY)
     }
 
@@ -667,17 +700,19 @@ class GameActivity : AppCompatActivity() {
         handler.removeCallbacksAndMessages(null)
         isAIChainRunning = false
     }
-
     override fun onResume() {
         super.onResume()
+        android.util.Log.d("GameActivity", "onResume")
         // 从后台返回时，检查是否需要启动AI
         checkAndStartAIChain()
     }
 
     override fun onPause() {
         super.onPause()
+        android.util.Log.d("GameActivity", "onPause")
         // 进入后台时停止AI链
         handler.removeCallbacksAndMessages(null)
         isAIChainRunning = false
     }
+
 }

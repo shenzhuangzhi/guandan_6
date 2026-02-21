@@ -45,6 +45,7 @@ class CardComparator(private val levelRank: CardRank? = null) : Comparator<Card>
      * - 3-10：3-10
      * - J：11, Q：12, K：13, A：14
      * - 级牌：15（比A大，比小王小）
+     * - 红桃级牌（逢人配）：15（与级牌相同，但花色排序让它排在级牌后面）
      * - 小王：16
      * - 大王：17
      */
@@ -73,4 +74,12 @@ class CardComparator(private val levelRank: CardRank? = null) : Comparator<Card>
             }
         }
     }
+
+    /**
+     * 【新增】判断是否是逢人配（红桃级牌）
+     */
+    fun isFengRenPei(card: Card): Boolean {
+        return card.suit == CardSuit.HEART && card.rank == levelRank
+    }
+
 }
