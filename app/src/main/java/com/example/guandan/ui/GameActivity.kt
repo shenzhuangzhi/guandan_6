@@ -57,6 +57,9 @@ class GameActivity : AppCompatActivity() {
     // 标记是否正在运行AI链，防止重复启动
     private var isAIChainRunning = false
 
+    // 【新增】标记游戏是否已结束（用于判断是否可以退出）
+    private var isGameFinished = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -119,15 +122,43 @@ class GameActivity : AppCompatActivity() {
 
     // 显示设置对话框
     private fun showSettingsDialog() {
-        val options = arrayOf("重新开牌", "检查APP更新", "手动强制更新")
+        val options = arrayOf("重新开牌", "回到主界面", "终止游戏", "检查APP更新", "手动强制更新")
         AlertDialog.Builder(this)
             .setTitle("设置")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showRestartGameConfirmDialog()
-                    1 -> checkForUpdate()
-                    2 -> manualForceUpdate()
+                    1 -> showBackToMainConfirmDialog()
+                    2 -> showExitGameConfirmDialog()
+                    3 -> checkForUpdate()
+                    4 -> manualForceUpdate()
                 }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // 【新增】显示回到主界面确认对话框
+    private fun showBackToMainConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("回到主界面")
+            .setMessage("确定要回到主界面吗？当前游戏进度将保留，可以重新进入继续游戏。")
+            .setPositiveButton("确定") { _, _ ->
+                finish() // 结束当前Activity，回到MainActivity
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    // 【新增】显示终止游戏确认对话框（退出整个APP）
+    private fun showExitGameConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("终止游戏")
+            .setMessage("确定要退出整个APP吗？")
+            .setPositiveButton("确定退出") { _, _ ->
+                // 彻底退出APP
+                finishAffinity()
+                android.os.Process.killProcess(android.os.Process.myPid())
             }
             .setNegativeButton("取消", null)
             .show()
@@ -142,6 +173,38 @@ class GameActivity : AppCompatActivity() {
                 restartGame()
             }
             .setNegativeButton("取消", null)
+            .show()
+    }
+
+
+    // 【新增】拦截返回键，游戏未结束时弹出确认对话框
+    override fun onBackPressed() {
+        // 如果游戏已结束，直接退出
+        if (isGameFinished) {
+            super.onBackPressed()
+            return
+        }
+
+        // 检查是否还有玩家在出牌（游戏进行中）
+        val game = guandanGame
+        val room = gameRoom
+
+        // 如果游戏未初始化或已结束，直接退出
+        if (game == null || room == null || game.isGameOver()) {
+            super.onBackPressed()
+            return
+        }
+
+        // 游戏进行中，弹出确认对话框
+        AlertDialog.Builder(this)
+            .setTitle("确认退出")
+            .setMessage("牌局正在进行中，确定要退出吗？\n（当前进度将丢失）")
+            .setPositiveButton("确定退出") { _, _ ->
+                // 用户确认退出，执行默认返回操作
+                super.onBackPressed()
+            }
+            .setNegativeButton("继续游戏", null)
+            .setCancelable(true)
             .show()
     }
 
@@ -587,6 +650,9 @@ class GameActivity : AppCompatActivity() {
     private fun gameOver() {
         val game = guandanGame ?: return
         val room = gameRoom ?: return
+
+        // 【关键】设置游戏已结束标志，允许直接退出
+        isGameFinished = true
 
         // 【关键】先保存升级前的两队等级
         val oldTeam0Level = game.team0Level

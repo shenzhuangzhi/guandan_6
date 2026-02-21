@@ -58,7 +58,7 @@
             android:layout_height="60dp"
             android:text="双人模式（2人vs2AI）"
             android:textSize="18sp"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="10dp"
             android:backgroundTint="#ff5722"/>
 
         <Button
@@ -67,7 +67,7 @@
             android:layout_height="60dp"
             android:text="三人模式（3人vs1AI）"
             android:textSize="18sp"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="10dp"
             android:backgroundTint="#ff5722"/>
 
         <Button
@@ -76,7 +76,7 @@
             android:layout_height="60dp"
             android:text="四人联网模式"
             android:textSize="18sp"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="10dp"
             android:backgroundTint="#ff5722"/>
 
     </LinearLayout>
