@@ -8,6 +8,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.guandan.R
 import com.example.guandan.model.Card
+import com.example.guandan.model.CardRank  // 【新增】导入 CardRank
+import com.example.guandan.utils.CardComparator  // 【新增】导入 CardComparator
 
 class CardAdapter(
     private val cardList: MutableList<Card>,
@@ -15,7 +17,6 @@ class CardAdapter(
 ) : RecyclerView.Adapter<CardAdapter.CardViewHolder>() {
 
     inner class CardViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-//        val tvCardName: TextView = itemView.findViewById(R.id.tv_card_name)
         val ivCard: ImageView = itemView.findViewById(R.id.iv_card)
         val viewSelected: View = itemView.findViewById(R.id.view_selected)
 
@@ -43,8 +44,6 @@ class CardAdapter(
         }
 
         fun bind(card: Card) {
-//            tvCardName.text = card.getDisplayName()
-
             val resId = itemView.context.resources.getIdentifier(
                 card.getResName(),
                 "drawable",
@@ -78,9 +77,15 @@ class CardAdapter(
 
     override fun getItemCount(): Int = cardList.size
 
-    fun updateData(newCards: List<Card>) {
+    // 【修改】添加 levelRank 参数，使用带级牌的比较器排序
+    fun updateData(newCards: List<Card>, levelRank: CardRank? = null) {
         cardList.clear()
         cardList.addAll(newCards)
+        // 【新增】使用带级牌的比较器排序
+        if (levelRank != null) {
+            val comparator = CardComparator(levelRank)
+            cardList.sortWith(comparator)
+        }
         notifyDataSetChanged()
     }
 

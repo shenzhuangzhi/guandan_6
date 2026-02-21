@@ -46,6 +46,10 @@ class GameActivity : AppCompatActivity() {
     // 保存当前游戏模式，用于重新开牌
     private var currentGameMode: GameMode = GameMode.SINGLE_PLAYER
 
+    // 【修改】保存两队等级，分别升级
+    private var savedTeam0Level: Int = 2
+    private var savedTeam1Level: Int = 2
+
     // 服务器配置
     private val UPDATE_SERVER_URL = "http://120.26.136.185/guandan"
     private val APK_NAME = "app-release.apk"
@@ -60,7 +64,7 @@ class GameActivity : AppCompatActivity() {
             val gameMode = GameMode.values().getOrNull(gameModeOrdinal) ?: GameMode.SINGLE_PLAYER
             currentGameMode = gameMode
 
-            initGame(gameMode)
+            initGame(gameMode, savedTeam0Level, savedTeam1Level)
 
             // 设置按钮点击事件
             binding.btnSettings.setOnClickListener { showSettingsDialog() }
@@ -78,10 +82,16 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
-    // 初始化游戏
-    private fun initGame(gameMode: GameMode) {
+    // 修改 initGame 函数签名
+    private fun initGame(gameMode: GameMode, restoreTeam0Level: Int? = null, restoreTeam1Level: Int? = null, firstPlayerPosition: Int = 0) {
         guandanGame = GuandanGame()
-        gameRoom = guandanGame?.initGame(gameMode)
+
+        if (restoreTeam0Level != null && restoreTeam1Level != null) {
+            guandanGame?.setTeamLevels(restoreTeam0Level, restoreTeam1Level)
+        }
+
+        // 【修改】传入位置索引
+        gameRoom = guandanGame?.initGame(gameMode, firstPlayerPosition)
         humanPlayer = gameRoom?.players?.firstOrNull { !it.isAI }
 
         if (gameRoom == null || humanPlayer == null) {
@@ -90,7 +100,10 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-        // 初始化记录
+        if (restoreTeam0Level != null && restoreTeam1Level != null) {
+            guandanGame?.resortAllCards()
+        }
+
         playerLastCards.clear()
         playerHasPlayed.clear()
         gameRoom?.players?.forEach { player ->
@@ -130,23 +143,23 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
-    // 重新开牌
-    private fun restartGame() {
-        // 停止AI自动出牌
-        handler.removeCallbacksAndMessages(null)
 
-        // 清空选中的牌
+    // 修改 restartGame 函数
+    private fun restartGame() {
+        handler.removeCallbacksAndMessages(null)
         selectedCards.clear()
 
-        // 重新初始化游戏
-        initGame(currentGameMode)
+        // 【关键】获取头游位置
+        val touYouPosition = guandanGame?.lastTouYouPosition ?: 0
 
-        // 检查是否需要启动AI
+        initGame(currentGameMode, savedTeam0Level, savedTeam1Level, touYouPosition)
+
         if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
             startAIAutoPlayChain()
         }
 
-        Toast.makeText(this, "已重新开牌", Toast.LENGTH_SHORT).show()
+        val currentPlayer = gameRoom?.players?.find { it.isCurrentTurn }
+        Toast.makeText(this, "已重新开牌，${currentPlayer?.name}先出", Toast.LENGTH_SHORT).show()
     }
 
     // 检查APP更新（优化版）
@@ -272,7 +285,8 @@ class GameActivity : AppCompatActivity() {
 
             player.cards.forEach { it.isSelected = false }
             selectedCards.clear()
-            cardAdapter.updateData(player.cards)
+            // 【修改】使用当前玩家所在队伍的级牌更新数据
+            cardAdapter.updateData(player.cards, game.currentLevelRank)
             updateAllUI()
 
             if (game.isGameOver()) {
@@ -349,12 +363,18 @@ class GameActivity : AppCompatActivity() {
 
     private fun updatePlayerInfo() {
         val room = gameRoom ?: return
+        val game = guandanGame ?: return
         val curr = room.players.find { it.isCurrentTurn }
 
-        binding.tvCurrentPlayer.text = "当前出牌：${curr?.name ?: "无"}"
+        // 【修改】显示当前局固定的级牌（不随出牌玩家变化）
+        val fixedLevel = game.getFixedLevel()
+        binding.tvCurrentPlayer.text = "当前打${fixedLevel}级(🔵${game.team0Level}🔴${game.team1Level}) | 出牌：${curr?.name ?: "无"}"
 
         room.players.forEach { player ->
-            val nameText = "${player.name}\n剩${player.cards.size}张"
+            val teamColor = if (player.team == 0) "🔵" else "🔴"
+            val teammateMark = if (player.team == 0) "(友)" else "(敌)"
+            val nameText = "${teamColor}${player.name}${teammateMark}\n剩${player.cards.size}张"
+
             when {
                 player.isAI && room.players.indexOf(player) == 1 -> {
                     binding.tvAi1.text = nameText
@@ -371,6 +391,7 @@ class GameActivity : AppCompatActivity() {
             }
         }
     }
+
 
     private fun updateLastPlayedDisplay() {
         val room = gameRoom ?: return
@@ -446,10 +467,121 @@ class GameActivity : AppCompatActivity() {
 
     private fun gameOver() {
         val game = guandanGame ?: return
-        val win = game.getWinner()
-        Toast.makeText(this, "游戏结束！赢家：${win?.name ?: "无"}", Toast.LENGTH_LONG).show()
-        handler.postDelayed({ finish() }, 2000)
+        val room = gameRoom ?: return
+
+        // 【关键】先保存升级前的两队等级
+        val oldTeam0Level = game.team0Level
+        val oldTeam1Level = game.team1Level
+
+        // 获取赢家（内部会执行升级）
+        val winner = game.getWinner()
+        if (winner == null) return
+
+        // 【关键】升级后马上保存新的两队等级，以便下一局使用
+        savedTeam0Level = game.team0Level
+        savedTeam1Level = game.team1Level
+
+        // 计算实际升级级数
+        val team0Upgrade = savedTeam0Level - oldTeam0Level
+        val team1Upgrade = savedTeam1Level - oldTeam1Level
+
+        // 计算排名
+        val sortedPlayers = room.players.sortedBy { it.cards.size }
+        val winnerRank = sortedPlayers.indexOfFirst { it.id == winner.id } + 1
+        val teammate = sortedPlayers.find { it.team == winner.team && it.id != winner.id }
+        val teammateRank = if (teammate != null) sortedPlayers.indexOfFirst { it.id == teammate.id } + 1 else 4
+
+        // 判断是否过A
+        val winnerTeam = winner.team
+        val winnerOldLevel = if (winnerTeam == 0) oldTeam0Level else oldTeam1Level
+        val winnerNewLevel = if (winnerTeam == 0) savedTeam0Level else savedTeam1Level
+        val isOverA = winnerOldLevel == 14 && teammateRank <= 3
+        val needRetryA = winnerOldLevel == 14 && teammateRank == 4
+
+        // 构建提示信息
+        val message = StringBuilder()
+        message.appendLine("🎉 游戏结束！")
+        message.appendLine()
+        message.appendLine("🏆 赢家：${winner.name}（头游）")
+        message.appendLine("👥 队友：${teammate?.name ?: "无"}（${getRankText(teammateRank)}）")
+        message.appendLine()
+        message.appendLine("📊 本局结果：")
+        sortedPlayers.forEachIndexed { index, player ->
+            val rank = index + 1
+            val teamMark = if (player.team == 0) "🔵" else "🔴"
+            message.appendLine("  ${rank}. ${teamMark}${player.name} - 剩${player.cards.size}张")
+        }
+        message.appendLine()
+        message.appendLine("🎯 升级情况：")
+        message.appendLine("  🔵0队：${oldTeam0Level}级 -> ${savedTeam0Level}级")
+        message.appendLine("  🔴1队：${oldTeam1Level}级 -> ${savedTeam1Level}级")
+
+        if (needRetryA) {
+            message.appendLine()
+            message.appendLine("  ❌ 打A失败！队友为末游")
+            message.appendLine("  需退回2重打")
+        } else if (isOverA) {
+            message.appendLine()
+            message.appendLine("🎊🎊🎊 恭喜${winnerTeam}队成功过A！🎊🎊🎊")
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("游戏结束")
+            .setMessage(message.toString())
+            .setPositiveButton("确定") { _, _ ->
+                if (isOverA) {
+                    finish()
+                } else {
+                    // 【修改】传入两队最新等级
+                    restartGameWithLevel(savedTeam0Level, savedTeam1Level)
+                }
+            }
+            .setCancelable(false)
+            .show()
     }
+
+    /**
+     * 【新增】获取排名文字
+     */
+    private fun getRankText(rank: Int): String {
+        return when (rank) {
+            1 -> "头游"
+            2 -> "二游"
+            3 -> "三游"
+            4 -> "末游"
+            else -> "未知"
+        }
+    }
+
+
+    // 修改 restartGameWithLevel 函数
+    private fun restartGameWithLevel(team0Level: Int, team1Level: Int) {
+        handler.removeCallbacksAndMessages(null)
+        selectedCards.clear()
+
+        savedTeam0Level = team0Level
+        savedTeam1Level = team1Level
+
+        // 【关键】获取头游位置
+        val touYouPosition = guandanGame?.lastTouYouPosition ?: 0
+        println("重新开始游戏，头游位置=$touYouPosition")
+
+        guandanGame?.resetUpgradeFlag()
+
+        // 【关键】传入头游位置
+        initGame(currentGameMode, team0Level, team1Level, touYouPosition)
+
+        if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
+            startAIAutoPlayChain()
+        }
+
+        val currentPlayer = gameRoom?.players?.find { it.isCurrentTurn }
+        val currentTeam = currentPlayer?.team ?: 0
+        val currentLevel = if (currentTeam == 0) team0Level else team1Level
+        Toast.makeText(this, "下一局：${currentPlayer?.name}先出，打$currentLevel", Toast.LENGTH_SHORT).show()
+    }
+
+
 
     override fun onDestroy() {
         super.onDestroy()

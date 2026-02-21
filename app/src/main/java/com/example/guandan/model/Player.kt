@@ -13,5 +13,6 @@ data class Player(
     var needTribute: Boolean = false, // 是否需要进贡
     var tributeCard: Card? = null,   // 进贡的牌
     var receiveTributeCard: Card? = null, // 接贡的牌
-    var isFirstOut: Boolean = false  // 是否首轮出牌
+    var isFirstOut: Boolean = false,  // 是否首轮出牌
+    var team: Int = 0                // 【新增】队伍：0或1，掼蛋分两队
 )
