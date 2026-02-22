@@ -1,12 +1,12 @@
 package com.example.guandan.model
 
 // 牌花色
-enum class CardSuit(val displayName: String) {
-    HEART("红桃"),
-    DIAMOND("方块"),
-    CLUB("梅花"),
-    SPADE("黑桃"),
-    JOKER("王")
+enum class CardSuit(val displayName: String, val symbol: String) {
+    HEART("红桃", "♥"),
+    DIAMOND("方块", "♦"),
+    CLUB("梅花", "♣"),
+    SPADE("黑桃", "♠"),
+    JOKER("王", "👑")
 }
 
 // 牌点数枚举：value 从小到大，3 < 4 < 5 < ... < 2 < 小王 < 大王
@@ -38,13 +38,22 @@ data class Card(
     var isSelected: Boolean = false // 是否被选中（出牌用）
 ) {
     // 获取牌的显示名称（如：红桃3、大王）
-//    fun getDisplayName(): String {
-//        return if (rank.isJoker()) {
-//            rank.displayName
-//        } else {
-//            "${suit.displayName}${rank.displayName}"
-//        }
-//    }
+    fun getDisplayName(): String {
+        return if (rank.isJoker()) {
+            rank.displayName
+        } else {
+            "${suit.displayName}${rank.displayName}"
+        }
+    }
+
+    // 获取牌的简短显示（如：♥3、♠K）
+    fun getShortName(): String {
+        return if (rank.isJoker()) {
+            rank.displayName
+        } else {
+            "${suit.symbol}${rank.displayName}"
+        }
+    }
 
     // 获取牌的资源名称（用于加载图片，如：heart_3、joker_big）
     fun getResName(): String {
@@ -65,5 +74,8 @@ data class Card(
         return suit == CardSuit.HEART && rank == levelRank
     }
 
-
+    // 【新增】方便日志输出
+    override fun toString(): String {
+        return getShortName()
+    }
 }

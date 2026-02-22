@@ -19,3 +19,19 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# 正式包自动移除所有日志代码
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+    public static int w(...);
+    public static int e(...);
+}
+
+# 移除 System.out.println
+-assumenosideeffects class java.io.PrintStream {
+    public void println(...);
+    public void print(...);
+}
+
+

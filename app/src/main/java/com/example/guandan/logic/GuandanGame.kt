@@ -909,18 +909,15 @@ class GuandanGame {
     // ==================== 以下所有找牌方法都支持逢人配（不能当王） ====================
 
     /**
-     * 【新增】找最小单张压牌（支持逢人配，不能当王）
+     * 【修改】找最小单张压牌（支持逢人配和王）
      */
     private fun findMinSingleToBeatWithFengRenPei(cards: List<Card>, target: Card): List<Card> {
         val (fengRenPeiList, normalCards) = separateFengRenPei(cards)
 
-        // 过滤出非王牌
-        val validNormalCards = normalCards.filter { !it.rank.isJoker() }
-
         val targetEffectiveValue = if (isFengRenPei(target)) getEffectiveValue(fixedLevelRank) else getEffectiveValue(target.rank)
 
-        // 优先用普通牌
-        val minNormal = validNormalCards.filter { getEffectiveValue(it.rank) > targetEffectiveValue }
+        // 【关键修改】单张出牌时，王可以参与比较，不要过滤掉
+        val minNormal = normalCards.filter { getEffectiveValue(it.rank) > targetEffectiveValue }
             .minWithOrNull(Comparator { c1, c2 ->
                 getEffectiveValue(c1.rank) - getEffectiveValue(c2.rank)
             })
@@ -934,16 +931,15 @@ class GuandanGame {
     }
 
     /**
-     * 【新增】找最大单张压牌（支持逢人配，不能当王）
+     * 【修改】找最大单张压牌（支持逢人配和王）
      */
     private fun findMaxSingleToBeatWithFengRenPei(cards: List<Card>, target: Card): List<Card> {
         val (fengRenPeiList, normalCards) = separateFengRenPei(cards)
-        val validNormalCards = normalCards.filter { !it.rank.isJoker() }
 
         val targetEffectiveValue = if (isFengRenPei(target)) getEffectiveValue(fixedLevelRank) else getEffectiveValue(target.rank)
 
-        // 优先用普通牌（从大到小）
-        val maxNormal = validNormalCards.filter { getEffectiveValue(it.rank) > targetEffectiveValue }
+        // 【关键修改】单张出牌时，王可以参与比较，不要过滤掉
+        val maxNormal = normalCards.filter { getEffectiveValue(it.rank) > targetEffectiveValue }
             .maxWithOrNull(Comparator { c1, c2 ->
                 getEffectiveValue(c1.rank) - getEffectiveValue(c2.rank)
             })
@@ -1618,14 +1614,13 @@ class GuandanGame {
     }
 
     /**
-     * 【新增】找最大单张（支持逢人配，不能当王）
+     * 【修改】找最大单张（支持逢人配和王）- 用于首轮出牌
      */
     private fun findMaxSingleWithFengRenPei(cards: List<Card>): List<Card> {
         val (fengRenPeiList, normalCards) = separateFengRenPei(cards)
-        val validNormalCards = normalCards.filter { !it.rank.isJoker() }
 
-        // 优先出普通牌（从小到大）
-        val maxNormal = validNormalCards.maxWithOrNull(Comparator { c1, c2 ->
+        // 【修改】保留王
+        val maxNormal = normalCards.maxWithOrNull(Comparator { c1, c2 ->
             getEffectiveValue(c1.rank) - getEffectiveValue(c2.rank)
         })
 
@@ -1638,13 +1633,13 @@ class GuandanGame {
     }
 
     /**
-     * 【新增】找最小单张（支持逢人配，不能当王）
+     * 【修改】找最小单张（支持逢人配和王）- 用于首轮出牌
      */
     private fun findMinSingleWithFengRenPei(cards: List<Card>): List<Card> {
         val (fengRenPeiList, normalCards) = separateFengRenPei(cards)
-        val validNormalCards = normalCards.filter { !it.rank.isJoker() }
 
-        val minNormal = validNormalCards.minWithOrNull(Comparator { c1, c2 ->
+        // 【修改】保留王
+        val minNormal = normalCards.minWithOrNull(Comparator { c1, c2 ->
             getEffectiveValue(c1.rank) - getEffectiveValue(c2.rank)
         })
 

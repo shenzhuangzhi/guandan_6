@@ -27,6 +27,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
+// 导入滑动选牌需要的类
+import androidx.recyclerview.widget.RecyclerView
+import android.view.MotionEvent
+
+
 class GameActivity : AppCompatActivity() {
     private lateinit var binding: ActivityGameBinding
     private var guandanGame: GuandanGame? = null
@@ -36,7 +41,7 @@ class GameActivity : AppCompatActivity() {
     private var humanPlayer: Player? = null
 
     private val handler = Handler(Looper.getMainLooper())
-    private val AI_PLAY_DELAY = 1000L
+    private val AI_PLAY_DELAY = 2000L  // 【修改】AI间隔改为2秒
 
     // 记录每个玩家上轮出的牌
     private val playerLastCards = mutableMapOf<String, List<Card>>()
@@ -46,7 +51,7 @@ class GameActivity : AppCompatActivity() {
     // 保存当前游戏模式，用于重新开牌
     private var currentGameMode: GameMode = GameMode.SINGLE_PLAYER
 
-    // 【修改】保存两队等级，分别升级
+    // 保存两队等级，分别升级
     private var savedTeam0Level: Int = 2
     private var savedTeam1Level: Int = 2
 
@@ -57,7 +62,7 @@ class GameActivity : AppCompatActivity() {
     // 标记是否正在运行AI链，防止重复启动
     private var isAIChainRunning = false
 
-    // 【新增】标记游戏是否已结束（用于判断是否可以退出）
+    // 标记游戏是否已结束（用于判断是否可以退出）
     private var isGameFinished = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,7 +100,7 @@ class GameActivity : AppCompatActivity() {
             guandanGame?.setTeamLevels(restoreTeam0Level, restoreTeam1Level)
         }
 
-        // 【修改】传入位置索引
+        // 传入位置索引
         gameRoom = guandanGame?.initGame(gameMode, firstPlayerPosition)
         humanPlayer = gameRoom?.players?.firstOrNull { !it.isAI }
 
@@ -138,25 +143,24 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
-    // 【新增】显示回到主界面确认对话框
+    // 显示回到主界面确认对话框
     private fun showBackToMainConfirmDialog() {
         AlertDialog.Builder(this)
             .setTitle("回到主界面")
             .setMessage("确定要回到主界面吗？当前游戏进度将保留，可以重新进入继续游戏。")
             .setPositiveButton("确定") { _, _ ->
-                finish() // 结束当前Activity，回到MainActivity
+                finish()
             }
             .setNegativeButton("取消", null)
             .show()
     }
 
-    // 【新增】显示终止游戏确认对话框（退出整个APP）
+    // 显示终止游戏确认对话框（退出整个APP）
     private fun showExitGameConfirmDialog() {
         AlertDialog.Builder(this)
             .setTitle("终止游戏")
             .setMessage("确定要退出整个APP吗？")
             .setPositiveButton("确定退出") { _, _ ->
-                // 彻底退出APP
                 finishAffinity()
                 android.os.Process.killProcess(android.os.Process.myPid())
             }
@@ -176,31 +180,25 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
-
-    // 【新增】拦截返回键，游戏未结束时弹出确认对话框
+    // 拦截返回键，游戏未结束时弹出确认对话框
     override fun onBackPressed() {
-        // 如果游戏已结束，直接退出
         if (isGameFinished) {
             super.onBackPressed()
             return
         }
 
-        // 检查是否还有玩家在出牌（游戏进行中）
         val game = guandanGame
         val room = gameRoom
 
-        // 如果游戏未初始化或已结束，直接退出
         if (game == null || room == null || game.isGameOver()) {
             super.onBackPressed()
             return
         }
 
-        // 游戏进行中，弹出确认对话框
         AlertDialog.Builder(this)
             .setTitle("确认退出")
             .setMessage("牌局正在进行中，确定要退出吗？\n（当前进度将丢失）")
             .setPositiveButton("确定退出") { _, _ ->
-                // 用户确认退出，执行默认返回操作
                 super.onBackPressed()
             }
             .setNegativeButton("继续游戏", null)
@@ -208,13 +206,12 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
-
     // 修改 restartGame 函数
     private fun restartGame() {
         handler.removeCallbacksAndMessages(null)
-        selectedCards.clear()
 
-        // 【关键】获取头游位置
+        forceClearAllSelection("restartGame")
+
         val touYouPosition = guandanGame?.lastTouYouPosition ?: 0
 
         initGame(currentGameMode, savedTeam0Level, savedTeam1Level, touYouPosition)
@@ -228,12 +225,10 @@ class GameActivity : AppCompatActivity() {
     }
 
     // 检查并启动AI链（统一入口）
-// 检查并启动AI链（统一入口）
     private fun checkAndStartAIChain() {
         val room = gameRoom ?: return
         val currentPlayer = room.players.find { it.isCurrentTurn } ?: return
 
-        // 如果当前是AI回合且没有在运行AI链，则启动
         if (currentPlayer.isAI && !isAIChainRunning) {
             android.util.Log.d("AI_CHAIN", "检测到AI回合且链未运行，启动AI链")
             startAIAutoPlayChain()
@@ -245,7 +240,6 @@ class GameActivity : AppCompatActivity() {
     // 检查APP更新（优化版）
     private fun checkForUpdate() {
         val apkUrl = "$UPDATE_SERVER_URL/$APK_NAME"
-        // 使用唯一文件名，避免冲突
         val uniqueName = "app-update-${System.currentTimeMillis()}.apk"
         val localFile = File(filesDir, uniqueName)
 
@@ -265,13 +259,11 @@ class GameActivity : AppCompatActivity() {
                         runOnUiThread {
                             Toast.makeText(this, "下载失败：${e.message}", Toast.LENGTH_LONG).show()
                         }
-                        // 下载失败也要清理
                         localFile.delete()
                     }
                 }
             }
             .setNegativeButton("取消") { _, _ ->
-                // 取消时清理（如果文件已存在）
                 localFile.delete()
             }
             .show()
@@ -279,9 +271,7 @@ class GameActivity : AppCompatActivity() {
 
     // 手动强制更新（外网手动更新）
     private fun manualForceUpdate() {
-        // 核心修改：把局域网 IP 改成阿里云服务器公网 IP + APK 路径
         val apkUrl = "$UPDATE_SERVER_URL/$APK_NAME"
-        // 使用唯一文件名，避免冲突
         val uniqueName = "app-release-${System.currentTimeMillis()}.apk"
         val localFile = File(filesDir, uniqueName)
 
@@ -301,13 +291,11 @@ class GameActivity : AppCompatActivity() {
                         runOnUiThread {
                             Toast.makeText(this, "下载失败：${e.message}", Toast.LENGTH_LONG).show()
                         }
-                        // 下载失败也要清理
                         localFile.delete()
                     }
                 }
             }
             .setNegativeButton("取消") { _, _ ->
-                // 取消时清理（如果文件已存在）
                 localFile.delete()
             }
             .show()
@@ -330,43 +318,283 @@ class GameActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "安装失败：${e.message}", Toast.LENGTH_SHORT).show()
-            // 安装失败也清理文件
             file.delete()
         }
     }
-
+    // 【修改】初始化RecyclerView，支持滑动选牌和手动点击分离
     private fun initCardRecyclerView() {
-        val playerCards = humanPlayer?.cards?.toMutableList() ?: mutableListOf()
-        cardAdapter = CardAdapter(playerCards) { card ->
+        // 直接使用 humanPlayer?.cards，不要复制
+        val playerCards = humanPlayer?.cards ?: emptyList()
+
+        // onCardClick增加isManualClick参数
+        cardAdapter = CardAdapter(playerCards.toMutableList()) { card, isManualClick ->
+            if (isManualClick) {
+                // 手动点击时，先清空滑动选牌的数据，避免冲突
+                clearSwipeSelectionData()
+            }
+
             if (card.isSelected) selectedCards.add(card)
             else selectedCards.remove(card)
         }
 
-        // 【修改】使用wrap_content让牌完整显示
         binding.rvCards.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.rvCards.adapter = cardAdapter
 
         binding.rvCards.clipChildren = false
         binding.rvCards.clipToPadding = false
+
+        // 添加滑动选牌功能 - 传入humanPlayer.cards的实时引用
+        setupSwipeToSelect(binding.rvCards)
     }
 
-    private fun playSelectedCards() {
-        val game = guandanGame ?: return
-        val player = humanPlayer ?: return
 
+    // 【新增】清空滑动选牌的数据
+    private fun clearSwipeSelectionData() {
+        android.util.Log.d("SELECT", "手动点击，清空滑动选牌的临时数据")
+
+        selectedCards.clear()
+
+        humanPlayer?.cards?.forEach { card ->
+            card.isSelected = false
+        }
+
+        cardAdapter.notifyDataSetChanged()
+    }
+    // 设置滑动选牌
+
+    // 【修改】设置滑动选牌 - 不再传入cards参数，直接使用humanPlayer?.cards
+    private fun setupSwipeToSelect(recyclerView: RecyclerView) {
+        recyclerView.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+            private var isSwiping = false
+            private var startPosition = -1
+            private val processedPositions = mutableSetOf<Int>()
+
+            // 【新增】获取当前手牌列表的辅助函数
+            private fun getCards(): List<Card> {
+                return humanPlayer?.cards ?: emptyList()
+            }
+
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
+                val cards = getCards()
+
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val child = rv.findChildViewUnder(e.x, e.y)
+                        if (child != null) {
+                            val position = rv.getChildAdapterPosition(child)
+                            if (position != RecyclerView.NO_POSITION && position < cards.size) {
+                                isSwiping = true
+                                startPosition = position
+                                processedPositions.clear()
+                                processedPositions.add(position)
+
+                                val card = cards[position]
+                                val newState = !card.isSelected
+
+                                toggleCardAtPosition(rv, position, newState)
+
+                                return true
+                            }
+                        }
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (isSwiping) {
+                            handleMoveEvent(rv, e)
+                            return true
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        resetSwipeState()
+                        // 【新增】滑动结束时显示选中的牌
+                       // showSelectedCardsInfo()
+                    }
+                }
+                return false
+            }
+
+            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> {
+                        if (isSwiping) handleMoveEvent(rv, e)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        resetSwipeState()
+                        // 【新增】滑动结束时显示选中的牌
+                       // showSelectedCardsInfo()
+                    }
+                }
+            }
+
+            private fun handleMoveEvent(rv: RecyclerView, e: MotionEvent) {
+                val cards = getCards()
+                val child = rv.findChildViewUnder(e.x, e.y)
+                if (child != null) {
+                    val position = rv.getChildAdapterPosition(child)
+                    if (position != RecyclerView.NO_POSITION && position < cards.size && position !in processedPositions) {
+                        processedPositions.add(position)
+
+                        val card = cards[position]
+                        val startCard = if (startPosition >= 0 && startPosition < cards.size) cards[startPosition] else null
+                        val targetState = startCard?.isSelected ?: !card.isSelected
+
+                        if (card.isSelected != targetState) {
+                            toggleCardAtPosition(rv, position, targetState)
+                        }
+                    }
+                }
+            }
+
+            private fun resetSwipeState() {
+                isSwiping = false
+                startPosition = -1
+                processedPositions.clear()
+            }
+
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+        })
+    }
+
+    // 【新增】显示当前选中的牌信息（日志+提示）
+    private fun showSelectedCardsInfo() {
+        val count = selectedCards.size
+        if (count == 0) {
+            android.util.Log.d("CardSelect", "【选牌】当前未选中任何牌")
+            // 可选：Toast提示
+            // Toast.makeText(this, "未选牌", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 按点数和花色排序，方便查看
+        val sortedCards = selectedCards.sortedWith(compareBy<Card> { it.rank.value }.thenBy { it.suit.ordinal })
+
+        // 构建牌面描述
+        val cardsDesc = sortedCards.joinToString(", ") { "${it.suit.symbol}${it.rank.displayName}" }
+
+        // 输出日志
+       // android.util.Log.d("CardSelect", "【选牌】共选中 $count 张牌: $cardsDesc")
+        //android.util.Log.d("CardSelect", "【选牌】详细列表: ${sortedCards.map { "${it.suit.name}_${it.rank.name}(选中=${it.isSelected})" }}")
+
+        // 输出到控制台（方便调试）
+        println("【选牌】共选中 $count 张牌: $cardsDesc")
+
+        // 显示Toast提示（短提示，避免干扰）
+        val toastMsg = if (count <= 5) {
+            "已选: $cardsDesc"
+        } else {
+            "已选 $count 张牌"
+        }
+        Toast.makeText(this, toastMsg, Toast.LENGTH_SHORT).show()
+    }
+
+    // 切换指定位置的牌选中状态
+    private fun toggleCardAtPosition(recyclerView: RecyclerView, position: Int, select: Boolean) {
+        val card = humanPlayer?.cards?.getOrNull(position) ?: return
+
+        if (card.isSelected == select) return
+
+        card.isSelected = select
+
+        if (select) {
+            // 【修改】掼蛋有两副牌，相同花色点数可以重复，直接添加不检查重复
+            selectedCards.add(card)
+            //android.util.Log.d("CardSelect", "【添加】位置$position: ${card.getShortName()} (当前共${selectedCards.size}张)")
+
+            // 【新增】检查是否有重复（调试用）
+            val duplicates = selectedCards.groupBy { "${it.suit.name}_${it.rank.name}" }
+                .filter { it.value.size > 1 }
+            if (duplicates.isNotEmpty()) {
+                //android.util.Log.d("CardSelect", "【调试】发现重复: ${duplicates.map { "${it.key}=${it.value.size}张" }}")
+            }
+        } else {
+            // 【修改】只移除这一个实例（用removeAt找索引，避免removeAll删多个）
+            val index = selectedCards.indexOf(card)
+            if (index >= 0) {
+                selectedCards.removeAt(index)
+                //android.util.Log.d("CardSelect", "【移除】位置$position: ${card.getShortName()} (当前共${selectedCards.size}张)")
+            } else {
+                android.util.Log.d("CardSelect", "【警告】位置$position: ${card.getShortName()} 未找到，无法移除")
+            }
+        }
+
+        val holder = recyclerView.findViewHolderForAdapterPosition(position) as? CardAdapter.CardViewHolder
+        if (holder != null) {
+            holder.updateSelectedState(card)
+        } else {
+            cardAdapter.notifyItemChanged(position, "SELECTION")
+        }
+    }
+
+    // 强制清空所有选中状态
+    private fun forceClearAllSelection(from: String = "unknown") {
+        android.util.Log.d("SELECT", "[$from] 强制清空所有选中状态")
+
+        selectedCards.clear()
+
+        humanPlayer?.cards?.forEach { card ->
+            card.isSelected = false
+        }
+
+        cardAdapter.notifyDataSetChanged()
+
+        android.util.Log.d("SELECT", "清空完成，选中数=${selectedCards.size}")
+    }
+
+    // 出牌
+    private fun playSelectedCards() {
         if (selectedCards.isEmpty()) {
+            forceClearAllSelection("playSelectedCards_empty")
             Toast.makeText(this, "请选择要出的牌", Toast.LENGTH_SHORT).show()
             return
         }
+
+        val game = guandanGame ?: return
+        val player = humanPlayer ?: return
+
+        // 【修改】验证选中的牌是否都在手牌中（按对象引用比较，保留重复牌）
+        val validSelected = mutableListOf<Card>()
+        val remainingHand = player.cards.toMutableList()  // 复制手牌，用于匹配
+
+        for (selectedCard in selectedCards) {
+            // 在手牌中找这个对象（按引用匹配）
+            val matchIndex = remainingHand.indexOf(selectedCard)
+            if (matchIndex >= 0) {
+                validSelected.add(selectedCard)
+                remainingHand.removeAt(matchIndex)  // 移除已匹配的，避免重复匹配同一张
+            } else {
+                android.util.Log.w("CardSelect", "选中的牌不在手牌中: ${selectedCard.getShortName()}, isSelected=${selectedCard.isSelected}")
+                // 【调试】输出手牌内容
+                //android.util.Log.w("CardSelect", "当前手牌: ${player.cards.map { "${it.getShortName()}(ref=${System.identityHashCode(it)})" }}")
+                //android.util.Log.w("CardSelect", "选中牌: ${selectedCards.map { "${it.getShortName()}(ref=${System.identityHashCode(it)})" }}")
+            }
+        }
+
+        selectedCards.clear()
+        selectedCards.addAll(validSelected)
+
+        if (selectedCards.isEmpty()) {
+            forceClearAllSelection("playSelectedCards_invalid")
+            Toast.makeText(this, "请选择要出的牌", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // 【修改】按玩家手牌顺序排序（不再去重）
+        val sortedCards = selectedCards.sortedWith { c1, c2 ->
+            val idx1 = player.cards.indexOf(c1)  // 按对象引用找位置
+            val idx2 = player.cards.indexOf(c2)
+            idx1 - idx2
+        }
+        selectedCards.clear()
+        selectedCards.addAll(sortedCards)
+
+        android.util.Log.d("CardSelect", "【出牌】准备出 ${selectedCards.size} 张牌: ${selectedCards.map { it.getShortName() }}")
 
         val ok = game.playCards(player.id, selectedCards)
         if (ok) {
             playerLastCards[player.id] = selectedCards.toList()
             playerHasPlayed[player.id] = true
 
-            player.cards.forEach { it.isSelected = false }
-            selectedCards.clear()
-            // 【修改】使用当前玩家所在队伍的级牌更新数据
+            forceClearAllSelection("playSelectedCards_success")
+
             cardAdapter.updateData(player.cards, game.currentLevelRank)
             updateAllUI()
 
@@ -375,13 +603,14 @@ class GameActivity : AppCompatActivity() {
                 return
             }
 
-            // 人类出牌后，检查是否需要启动AI链
             checkAndStartAIChain()
         } else {
+            forceClearAllSelection("playSelectedCards_fail")
             Toast.makeText(this, "出牌不合法", Toast.LENGTH_SHORT).show()
         }
     }
 
+    // 过牌
     private fun passTurn() {
         val player = humanPlayer ?: return
         val playerId = player.id
@@ -391,27 +620,25 @@ class GameActivity : AppCompatActivity() {
         playerLastCards[playerId] = emptyList()
         playerHasPlayed[playerId] = true
 
+        forceClearAllSelection("passTurn")
+
         updateAllUI()
 
-        // 人类过牌后，检查是否需要启动AI链
         checkAndStartAIChain()
     }
 
-    // 【核心修复】AI自动出牌链 - 使用循环而非递归，更可靠
+    // AI自动出牌链
     private fun startAIAutoPlayChain() {
-        // 防止重复启动
         if (isAIChainRunning) {
             android.util.Log.d("AI_CHAIN", "AI链已在运行，忽略重复启动")
             return
         }
 
-        // 【关键】清除之前的所有回调，确保干净启动
         handler.removeCallbacksAndMessages(null)
 
         isAIChainRunning = true
         android.util.Log.d("AI_CHAIN", "========== 启动AI链 ==========")
 
-        // 立即开始，不延迟
         processNextAIPlayer()
     }
 
@@ -428,7 +655,6 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-        // 检查游戏是否结束
         if (game.isGameOver()) {
             android.util.Log.d("AI_CHAIN", "游戏结束，停止AI链")
             isAIChainRunning = false
@@ -438,14 +664,12 @@ class GameActivity : AppCompatActivity() {
 
         val currentPlayer = room.players.find { it.isCurrentTurn }
 
-        // 找不到当前玩家
         if (currentPlayer == null) {
             android.util.Log.e("AI_CHAIN", "找不到当前玩家，停止AI链")
             isAIChainRunning = false
             return
         }
 
-        // 如果不是AI回合，停止链（等待人类操作）
         if (!currentPlayer.isAI) {
             android.util.Log.d("AI_CHAIN", "轮到人类玩家 ${currentPlayer.name}，暂停AI链")
             isAIChainRunning = false
@@ -454,31 +678,25 @@ class GameActivity : AppCompatActivity() {
 
         android.util.Log.d("AI_CHAIN", "AI玩家 ${currentPlayer.name} 开始决策，剩余${currentPlayer.cards.size}张牌")
 
-        // 【关键修改】AI执行出牌前，先检查是否真的轮到它
         if (!currentPlayer.isCurrentTurn) {
             android.util.Log.w("AI_CHAIN", "状态不同步，${currentPlayer.name} 不是当前回合，停止AI链")
             isAIChainRunning = false
             return
         }
 
-        // AI执行出牌
         val playedCard = game.autoPlayOneCard(currentPlayer)
 
-        // 【关键修改】检查autoPlayOneCard是否正确执行了过牌或出牌
-        // 如果playedCard为null且lastPlayedCards没有变化，说明是过牌
         val currentLastCards = game.lastPlayedCardsPublic
         val aiPlayedName = game.lastPlayerNamePublic
         val actuallyPlayed = playedCard != null && currentLastCards.isNotEmpty() && aiPlayedName == currentPlayer.name
 
         android.util.Log.d("AI_CHAIN", "${currentPlayer.name} 出牌结果: playedCard=${playedCard != null}, actuallyPlayed=$actuallyPlayed, lastName=$aiPlayedName")
 
-        // 更新UI
         playerLastCards[currentPlayer.id] = if (actuallyPlayed) currentLastCards.toList() else emptyList()
         playerHasPlayed[currentPlayer.id] = true
 
         updateAllUI()
 
-        // 检查游戏是否结束
         if (game.isGameOver()) {
             android.util.Log.d("AI_CHAIN", "AI出牌后游戏结束")
             isAIChainRunning = false
@@ -486,10 +704,7 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-        // 【关键修改】无论AI是出牌还是过牌，都继续下一个
-        // 延迟后继续下一个AI（给UI刷新时间）
         handler.postDelayed({
-            // 递归调用前检查是否还在运行
             if (isAIChainRunning) {
                 processNextAIPlayer()
             } else {
@@ -521,16 +736,13 @@ class GameActivity : AppCompatActivity() {
         updateTurnIndicator()
     }
 
-    // 新增：更新回合指示器，明确显示当前是谁的回合
+    // 更新回合指示器
     private fun updateTurnIndicator() {
         val room = gameRoom ?: return
         val currentPlayer = room.players.find { it.isCurrentTurn }
 
-        // 高亮当前玩家
         val isHumanTurn = currentPlayer?.id == humanPlayer?.id
 
-        // 可以根据需要在这里添加更明显的UI提示
-        // 例如改变边框颜色、显示动画等
         binding.tvCurrentPlayer.setTextColor(
             if (isHumanTurn) android.graphics.Color.GREEN
             else android.graphics.Color.WHITE
@@ -542,38 +754,31 @@ class GameActivity : AppCompatActivity() {
         val game = guandanGame ?: return
         val curr = room.players.find { it.isCurrentTurn }
 
-        // 【修改】显示当前局固定的级牌（不随出牌玩家变化）
         val fixedLevel = game.getFixedLevel()
         binding.tvCurrentPlayer.text = "当前打${fixedLevel}级(🔵${game.team0Level}🔴${game.team1Level}) | 出牌：${curr?.name ?: "无"}"
 
         room.players.forEach { player ->
             val teamColor = if (player.team == 0) "🔵" else "🔴"
-            // 【修改】改为两行显示：第一行名字+队友标记，第二行剩牌数
             val teammateMark = if (player.team == 0) "(友)" else "(敌)"
             val nameText = "${teamColor}${player.name}${teammateMark}"
             val cardText = "剩${player.cards.size}张"
 
             when {
                 player.isAI && room.players.indexOf(player) == 1 -> {
-                    // AI1 - 右上角
                     binding.tvAi1.text = "$nameText\n$cardText"
                 }
                 player.isAI && room.players.indexOf(player) == 2 -> {
-                    // AI2 - 左上角
                     binding.tvAi2.text = "$nameText\n$cardText"
                 }
                 player.isAI && room.players.indexOf(player) == 3 -> {
-                    // AI3 - 左下角
                     binding.tvAi3.text = "$nameText\n$cardText"
                 }
                 !player.isAI -> {
-                    // 玩家 - 右下角
                     binding.tvPlayer.text = "$nameText\n$cardText"
                 }
             }
         }
     }
-
 
     private fun updateLastPlayedDisplay() {
         val room = gameRoom ?: return
@@ -651,39 +856,28 @@ class GameActivity : AppCompatActivity() {
         val game = guandanGame ?: return
         val room = gameRoom ?: return
 
-        // 【关键】设置游戏已结束标志，允许直接退出
         isGameFinished = true
 
-        // 【关键】先保存升级前的两队等级
         val oldTeam0Level = game.team0Level
         val oldTeam1Level = game.team1Level
 
-        // 获取赢家（内部会执行升级）
         val winner = game.getWinner()
         if (winner == null) return
 
-        // 【关键】升级后马上保存新的两队等级，以便下一局使用
         savedTeam0Level = game.team0Level
         savedTeam1Level = game.team1Level
 
-        // 计算实际升级级数
-        val team0Upgrade = savedTeam0Level - oldTeam0Level
-        val team1Upgrade = savedTeam1Level - oldTeam1Level
-
-        // 计算排名
         val sortedPlayers = room.players.sortedBy { it.cards.size }
         val winnerRank = sortedPlayers.indexOfFirst { it.id == winner.id } + 1
         val teammate = sortedPlayers.find { it.team == winner.team && it.id != winner.id }
         val teammateRank = if (teammate != null) sortedPlayers.indexOfFirst { it.id == teammate.id } + 1 else 4
 
-        // 判断是否过A
         val winnerTeam = winner.team
         val winnerOldLevel = if (winnerTeam == 0) oldTeam0Level else oldTeam1Level
         val winnerNewLevel = if (winnerTeam == 0) savedTeam0Level else savedTeam1Level
         val isOverA = winnerOldLevel == 14 && teammateRank <= 3
         val needRetryA = winnerOldLevel == 14 && teammateRank == 4
 
-        // 构建提示信息
         val message = StringBuilder()
         message.appendLine("🎉 游戏结束！")
         message.appendLine()
@@ -717,7 +911,6 @@ class GameActivity : AppCompatActivity() {
                 if (isOverA) {
                     finish()
                 } else {
-                    // 【修改】传入两队最新等级
                     restartGameWithLevel(savedTeam0Level, savedTeam1Level)
                 }
             }
@@ -725,9 +918,6 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
-    /**
-     * 【新增】获取排名文字
-     */
     private fun getRankText(rank: Int): String {
         return when (rank) {
             1 -> "头游"
@@ -738,22 +928,19 @@ class GameActivity : AppCompatActivity() {
         }
     }
 
-
-    // 修改 restartGameWithLevel 函数
     private fun restartGameWithLevel(team0Level: Int, team1Level: Int) {
         handler.removeCallbacksAndMessages(null)
-        selectedCards.clear()
+
+        forceClearAllSelection("restartGameWithLevel")
 
         savedTeam0Level = team0Level
         savedTeam1Level = team1Level
 
-        // 【关键】获取头游位置
         val touYouPosition = guandanGame?.lastTouYouPosition ?: 0
         println("重新开始游戏，头游位置=$touYouPosition")
 
         guandanGame?.resetUpgradeFlag()
 
-        // 【关键】传入头游位置
         initGame(currentGameMode, team0Level, team1Level, touYouPosition)
 
         if (gameRoom?.players?.find { it.isCurrentTurn }?.isAI == true) {
@@ -766,26 +953,22 @@ class GameActivity : AppCompatActivity() {
         Toast.makeText(this, "下一局：${currentPlayer?.name}先出，打$currentLevel", Toast.LENGTH_SHORT).show()
     }
 
-
-
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
         isAIChainRunning = false
     }
+
     override fun onResume() {
         super.onResume()
         android.util.Log.d("GameActivity", "onResume")
-        // 从后台返回时，检查是否需要启动AI
         checkAndStartAIChain()
     }
 
     override fun onPause() {
         super.onPause()
         android.util.Log.d("GameActivity", "onPause")
-        // 进入后台时停止AI链
         handler.removeCallbacksAndMessages(null)
         isAIChainRunning = false
     }
-
 }

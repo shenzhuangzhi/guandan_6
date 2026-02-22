@@ -4,16 +4,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.guandan.R
 import com.example.guandan.model.Card
-import com.example.guandan.model.CardRank  // 【新增】导入 CardRank
-import com.example.guandan.utils.CardComparator  // 【新增】导入 CardComparator
+import com.example.guandan.model.CardRank
+import com.example.guandan.utils.CardComparator
 
 class CardAdapter(
     private val cardList: MutableList<Card>,
-    private val onCardClick: (Card) -> Unit
+    private val onCardClick: (Card, Boolean) -> Unit  // 修改：增加Boolean参数表示是否是手动点击
 ) : RecyclerView.Adapter<CardAdapter.CardViewHolder>() {
 
     inner class CardViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -25,15 +24,13 @@ class CardAdapter(
                 val position = adapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     val card = cardList[position]
-                    card.isSelected = !card.isSelected
-                    updateSelectedState(card)
-                    onCardClick(card)
+                    // 手动点击时，传递true表示这是手动点击
+                    onCardClick(card, true)
                 }
             }
         }
 
         fun updateSelectedState(card: Card) {
-            // 选中时牌向上移动
             if (card.isSelected) {
                 itemView.translationY = -20f
                 viewSelected.visibility = View.VISIBLE
@@ -50,7 +47,6 @@ class CardAdapter(
                 itemView.context.packageName
             )
             ivCard.setImageResource(if (resId != 0) resId else R.drawable.card_background)
-
             updateSelectedState(card)
         }
     }
@@ -77,11 +73,9 @@ class CardAdapter(
 
     override fun getItemCount(): Int = cardList.size
 
-    // 【修改】添加 levelRank 参数，使用带级牌的比较器排序
     fun updateData(newCards: List<Card>, levelRank: CardRank? = null) {
         cardList.clear()
         cardList.addAll(newCards)
-        // 【新增】使用带级牌的比较器排序
         if (levelRank != null) {
             val comparator = CardComparator(levelRank)
             cardList.sortWith(comparator)
